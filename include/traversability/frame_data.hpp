@@ -11,27 +11,26 @@ template<typename T>
 struct GpuBuffer {
     T*   ptr{nullptr};
     int  count{0};
-    bool ptr_owned_{true};  // false when ptr points into external memory (e.g. ZED GPU mat)
-
-    GpuBuffer() = default;
+    bool ptr_owned_{true};  // false when ptr is borrowed from an external allocator (e.g. ZED SDK)
 
     void allocate(int n) {
         cudaMalloc(&ptr, n * sizeof(T));
-        count = n;
+        count      = n;
         ptr_owned_ = true;
     }
 
     ~GpuBuffer() {
-        if (ptr != nullptr && ptr_owned_) {
-            cudaFree(ptr);
-        }
+        // Only free memory this buffer allocated.
+        // Borrowed pointers (ptr_owned_ = false) are owned by the external
+        // allocator -- freeing them here would corrupt the ZED SDK's internal state.
+        if (ptr && ptr_owned_) cudaFree(ptr);
     }
 
+    GpuBuffer()                            = default;
     GpuBuffer(const GpuBuffer&)            = delete;
     GpuBuffer& operator=(const GpuBuffer&) = delete;
-
-    GpuBuffer(GpuBuffer&&)            = default;
-    GpuBuffer& operator=(GpuBuffer&&) = default;
+    GpuBuffer(GpuBuffer&&)                 = default;
+    GpuBuffer& operator=(GpuBuffer&&)      = default;
 };
 
 struct Quaternion { float x{0}, y{0}, z{0}, w{1}; };

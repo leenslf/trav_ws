@@ -33,6 +33,8 @@ PipelineConfig PipelineConfig::load_from_file(const std::string& path) {
         if (n["coordinate_system"]) cfg.zed.coordinate_system = n["coordinate_system"].as<std::string>();
         if (n["depth_mode"])        cfg.zed.depth_mode        = n["depth_mode"].as<std::string>();
         if (n["resolution"])        cfg.zed.resolution        = n["resolution"].as<std::string>();
+        if (n["svo_path"])          cfg.zed.svo_path          = n["svo_path"].as<std::string>();
+        if (n["svo_real_time"])     cfg.zed.svo_real_time     = n["svo_real_time"].as<bool>();
         if (n["fps"])               cfg.zed.fps               = n["fps"].as<int>();
         if (n["frame_skip"])        cfg.zed.frame_skip        = n["frame_skip"].as<int>();
         const auto dims = zed_resolution_to_dims(cfg.zed.resolution);
@@ -60,6 +62,10 @@ PipelineConfig PipelineConfig::load_from_file(const std::string& path) {
         if (n["hcrit_m"])                    cfg.traversability.hcrit_m                    = n["hcrit_m"].as<float>();
         if (n["polar_grid_size_r_m"])        cfg.traversability.polar_grid_size_r_m        = n["polar_grid_size_r_m"].as<float>();
         if (n["polar_grid_size_theta_deg"])  cfg.traversability.polar_grid_size_theta_deg  = n["polar_grid_size_theta_deg"].as<float>();
+    }
+    if (auto n = root["disk_writer"]) {
+        if (n["output_dir"])   cfg.disk_writer.output_dir   = n["output_dir"].as<std::string>();
+        if (n["write_images"]) cfg.disk_writer.write_images = n["write_images"].as<bool>();
     }
 
     return cfg;

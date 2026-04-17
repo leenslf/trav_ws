@@ -14,7 +14,7 @@ sl::UNIT parse_coordinate_units(const std::string& value) {
     if (value == "MILLIMETER")  return sl::UNIT::MILLIMETER;
     if (value == "INCH")        return sl::UNIT::INCH;
     if (value == "FOOT")        return sl::UNIT::FOOT;
-    throw std::runtime_error("ZEDLiveSource: unknown coordinate_units: " + value);
+    throw std::runtime_error("ZEDSource: unknown coordinate_units: " + value);
 }
 
 sl::COORDINATE_SYSTEM parse_coordinate_system(const std::string& value) {
@@ -23,7 +23,7 @@ sl::COORDINATE_SYSTEM parse_coordinate_system(const std::string& value) {
     if (value == "RIGHT_HANDED_Y_UP")       return sl::COORDINATE_SYSTEM::RIGHT_HANDED_Y_UP;
     if (value == "LEFT_HANDED_Y_UP")        return sl::COORDINATE_SYSTEM::LEFT_HANDED_Y_UP;
     if (value == "LEFT_HANDED_Z_UP")        return sl::COORDINATE_SYSTEM::LEFT_HANDED_Z_UP;
-    throw std::runtime_error("ZEDLiveSource: unknown coordinate_system: " + value);
+    throw std::runtime_error("ZEDSource: unknown coordinate_system: " + value);
 }
 
 sl::DEPTH_MODE parse_depth_mode(const std::string& value) {
@@ -31,7 +31,7 @@ sl::DEPTH_MODE parse_depth_mode(const std::string& value) {
     if (value == "QUALITY")     return sl::DEPTH_MODE::QUALITY;
     if (value == "ULTRA")       return sl::DEPTH_MODE::ULTRA;
     if (value == "NEURAL")      return sl::DEPTH_MODE::NEURAL;
-    throw std::runtime_error("ZEDLiveSource: unknown depth_mode: " + value);
+    throw std::runtime_error("ZEDSource: unknown depth_mode: " + value);
 }
 
 sl::RESOLUTION parse_resolution(const std::string& value) {
@@ -40,16 +40,13 @@ sl::RESOLUTION parse_resolution(const std::string& value) {
     if (value == "HD720")  return sl::RESOLUTION::HD720;
     if (value == "HD1080") return sl::RESOLUTION::HD1080;
     if (value == "HD2K")   return sl::RESOLUTION::HD2K;
-    throw std::runtime_error("ZEDLiveSource: unknown resolution: " + value);
+    throw std::runtime_error("ZEDSource: unknown resolution: " + value);
 }
 
 } // namespace
 
-// ---------------------------------------------------------------------------
-// ZEDLiveSource
-// ---------------------------------------------------------------------------
-
-void ZEDLiveSource::init(const ZEDConfig& cfg) {
+void ZEDSource::init(const ZEDConfig& cfg) {
+    stop_requested_.store(false);
 
     sl::InitParameters init_params;
     init_params.coordinate_units  = parse_coordinate_units(cfg.coordinate_units);
@@ -58,31 +55,45 @@ void ZEDLiveSource::init(const ZEDConfig& cfg) {
     init_params.camera_resolution = parse_resolution(cfg.resolution);
     init_params.camera_fps        = cfg.fps;
 
+    if (!cfg.svo_path.empty()) {
+        init_params.input.setFromSVOFile(cfg.svo_path.c_str());
+        init_params.svo_real_time_mode = cfg.svo_real_time;
+    }
+
     const sl::ERROR_CODE open_err = camera_.open(init_params);
     if (open_err != sl::ERROR_CODE::SUCCESS) {
-        std::cerr << "ZEDLiveSource: camera_.open() failed: "
-                  << sl::toString(open_err).c_str() << "\n";
-        throw std::runtime_error("ZEDLiveSource: failed to open camera");
+        std::cerr << "[zed] open failed: " << sl::toString(open_err).c_str() << "\n";
+        throw std::runtime_error("ZEDSource: failed to open camera");
     }
 
     const sl::ERROR_CODE tracking_err =
         camera_.enablePositionalTracking(sl::PositionalTrackingParameters());
     if (tracking_err != sl::ERROR_CODE::SUCCESS) {
         camera_.close();
-        std::cerr << "ZEDLiveSource: enablePositionalTracking() failed: "
+        std::cerr << "[zed] enablePositionalTracking failed: "
                   << sl::toString(tracking_err).c_str() << "\n";
-        throw std::runtime_error("ZEDLiveSource: failed to enable positional tracking");
+        throw std::runtime_error("ZEDSource: failed to enable positional tracking");
     }
 
-    width_      = cfg.w;
-    height_     = cfg.h;
+    const auto camera_info = camera_.getCameraInformation();
+    width_ = camera_info.camera_configuration.resolution.width;
+    height_ = camera_info.camera_configuration.resolution.height;
     frame_skip_ = cfg.frame_skip;
-    frame_counter_ = 0;
+
+    std::fprintf(stderr, "[zed] opened resolution: %dx%d\n", width_, height_);
 
     point_cloud_.alloc(width_, height_, sl::MAT_TYPE::F32_C4, sl::MEM::GPU);
+
+    std::fprintf(stderr, "[zed] mode: %s | svo: %s\n",
+                 cfg.svo_path.empty() ? "live" : "svo",
+                 cfg.svo_path.empty() ? "" : cfg.svo_path.c_str());
 }
 
-bool ZEDLiveSource::capture(FrameData& frame) {
+bool ZEDSource::capture(FrameData& frame) {
+    if (stop_requested_.load()) {
+        return false;
+    }
+
     if (frame_skip_ > 0) {
         for (int i = 0; i < frame_skip_; ++i) {
             if (camera_.grab() != sl::ERROR_CODE::SUCCESS) {
@@ -117,27 +128,22 @@ bool ZEDLiveSource::capture(FrameData& frame) {
     frame.raw_count             = width_ * height_;
 
     sl::Pose zed_pose;
-    camera_.getPosition(zed_pose, sl::REFERENCE_FRAME::WORLD);
+    camera_.getPosition(zed_pose);
     const sl::Orientation ori = zed_pose.getOrientation();
     frame.camera_pose = Quaternion{ori.ox, ori.oy, ori.oz, ori.ow};
 
-    frame.timestamp_ns =
-        camera_.getTimestamp(sl::TIME_REFERENCE::IMAGE).getNanoseconds();
-    ++frame_counter_;
+    frame.timestamp_ns = camera_.getTimestamp(sl::TIME_REFERENCE::IMAGE).getNanoseconds();
 
     return true;
 }
 
-void ZEDLiveSource::shutdown() {
+void ZEDSource::request_stop() noexcept {
+    stop_requested_.store(true);
+}
+
+void ZEDSource::shutdown() {
     point_cloud_.free();
     camera_.disablePositionalTracking();
     camera_.close();
+    std::fprintf(stderr, "[zed] shutdown\n");
 }
-
-// ---------------------------------------------------------------------------
-// ZEDFileSource — stub, not yet implemented (i think this can be deleted)
-// ---------------------------------------------------------------------------
-
-void ZEDFileSource::init(const ZEDConfig&)    { fprintf(stderr, "ZEDFileSource: init\n"); }
-bool ZEDFileSource::capture(FrameData& frame) { fprintf(stderr, "ZEDFileSource: capture\n"); frame.raw_count = 0; return false; }
-void ZEDFileSource::shutdown()                {}

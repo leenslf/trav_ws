@@ -1,11 +1,15 @@
 zed:
   # Options: METER, CENTIMETER, MILLIMETER, INCH, FOOT
   coordinate_units: METER
-  # Options: RIGHT_HANDED_Z_UP, RIGHT_HANDED_Z_UP_X_FWD, RIGHT_HANDED_Y_UP, LEFT_HANDED_Y_UP, LEFT_HANDED_Z_UP
+  # pipeline assumes Z is up, X is forward, Y is left
   coordinate_system: RIGHT_HANDED_Z_UP_X_FWD
   # Options: PERFORMANCE, QUALITY, ULTRA, NEURAL
   depth_mode: PERFORMANCE
+  # fix this hardcoding
   resolution: HD720
+  svo_path: ""    
+  # When true, the ZED SDK throttles SVO playback to match the original recording FPS. 
+  svo_real_time: false 
   fps: 30
   frame_skip: 1
 
@@ -33,3 +37,8 @@ traversability:
   hcrit_m: 0.20
   polar_grid_size_r_m: 0.10
   polar_grid_size_theta_deg: 5.0
+
+
+disk_writer:
+  output_dir: "../output/frames2"
+  write_images: false

@@ -10,6 +10,7 @@ find_package(CUDA REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(yaml-cpp REQUIRED)
 find_package(ZED REQUIRED)
+find_package(OpenCV REQUIRED)
 
 file(GLOB_RECURSE SOURCES
     src/*.cpp
@@ -23,6 +24,7 @@ target_include_directories(traversability_pipeline PRIVATE
     ${ZED_INCLUDE_DIRS}
     ${EIGEN3_INCLUDE_DIR}
     ${CUDA_INCLUDE_DIRS}
+    ${OpenCV_INCLUDE_DIRS}
 )
 
 target_link_libraries(traversability_pipeline PRIVATE
@@ -30,4 +32,5 @@ target_link_libraries(traversability_pipeline PRIVATE
     yaml-cpp
     Eigen3::Eigen
     ${CUDA_LIBRARIES}
+    ${OpenCV_LIBS}
 )

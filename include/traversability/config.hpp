@@ -7,6 +7,8 @@ struct ZEDConfig {
     std::string coordinate_system{"RIGHT_HANDED_Z_UP_X_FWD"};
     std::string depth_mode{"PERFORMANCE"};
     std::string resolution{"HD720"};
+    std::string svo_path{""};
+    bool        svo_real_time{false};
     int         fps{30};
     int         w{1280};
     int         h{720};
@@ -51,6 +53,11 @@ struct NetworkConfig {
     int port{5005};
 };
 
+struct DiskWriterConfig {
+    std::string output_dir{"../output/frames"};
+    bool write_images{true};
+};
+
 struct PipelineConfig {
     ZEDConfig            zed;
     ExtractXYZConfig     extract_xyz;
@@ -59,6 +66,7 @@ struct PipelineConfig {
     PolarizeConfig       polarize;
     TraversabilityConfig traversability;
     NetworkConfig        network;
+    DiskWriterConfig     disk_writer;
 
     static PipelineConfig load_from_file(const std::string& path);
     static PipelineConfig defaults();

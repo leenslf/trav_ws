@@ -2,6 +2,8 @@
 #ifndef TRAVERSABILITY_ZED_SOURCE_HPP
 #define TRAVERSABILITY_ZED_SOURCE_HPP
 
+#include <atomic>
+
 #include <sl/Camera.hpp>
 
 #include "traversability/config.hpp"
@@ -13,28 +15,23 @@ public:
     virtual void init(const ZEDConfig& cfg) = 0;
     virtual bool capture(FrameData& frame) = 0;
     virtual void shutdown() = 0;
+    virtual void request_stop() noexcept = 0;
 };
 
-class ZEDLiveSource : public IZEDSource {
+class ZEDSource : public IZEDSource {
 public:
     void init(const ZEDConfig& cfg) override;
     bool capture(FrameData& frame) override;
     void shutdown() override;
+    void request_stop() noexcept override;
 
 private:
+    std::atomic<bool> stop_requested_{false};
     sl::Camera  camera_;
     sl::Mat     point_cloud_;   // GPU mat, reused every frame
     int         width_{0};
     int         height_{0};
     int         frame_skip_{0};
-    int         frame_counter_{0};
-};
-
-class ZEDFileSource : public IZEDSource {
-public:
-    void init(const ZEDConfig& cfg) override;
-    bool capture(FrameData& frame) override;
-    void shutdown() override;
 };
 
 #endif // TRAVERSABILITY_ZED_SOURCE_HPP
