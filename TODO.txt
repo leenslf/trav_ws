@@ -1,0 +1,5 @@
+[x] Add metrics to validate speed and efficiency
+    [] These are almost too good to be true
+[x] Add the visualizer from the previous implementation as a consumer
+[] fix camera resoluton hardcoding
+[] the rendering is taking a bit long, so the frames are being dropped from the "queue"
