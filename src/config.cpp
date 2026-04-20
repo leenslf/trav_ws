@@ -28,6 +28,10 @@ PipelineConfig PipelineConfig::load_from_file(const std::string& path) {
         return cfg;
     }
 
+    if (root["consumer"]) {
+        cfg.consumer = root["consumer"].as<std::string>();
+    }
+
     if (auto n = root["zed"]) {
         if (n["coordinate_units"])  cfg.zed.coordinate_units  = n["coordinate_units"].as<std::string>();
         if (n["coordinate_system"]) cfg.zed.coordinate_system = n["coordinate_system"].as<std::string>();

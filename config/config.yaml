@@ -7,9 +7,9 @@ zed:
   depth_mode: PERFORMANCE
   # fix this hardcoding
   resolution: HD720
-  svo_path: ""    
-  # When true, the ZED SDK throttles SVO playback to match the original recording FPS. 
-  svo_real_time: false 
+  svo_path: "/home/leen/zed2i-tools/recordings/WALL-COUCH/pointclouds/WALL-COUCH.svo2"    
+  # When svo_real_time_mode = true, the ZED SDK throttles SVO playback to match the original recording FPS. 
+  svo_real_time: true 
   fps: 30
   frame_skip: 1
 
@@ -37,6 +37,8 @@ traversability:
   hcrit_m: 0.20
   polar_grid_size_r_m: 0.10
   polar_grid_size_theta_deg: 5.0
+
+consumer: network
 
 
 disk_writer:

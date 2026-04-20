@@ -1,6 +1,14 @@
 cmake_minimum_required(VERSION 3.18)
 project(traversability_pipeline LANGUAGES CXX CUDA)
 
+if(POLICY CMP0146)
+    cmake_policy(SET CMP0146 OLD)
+endif()
+
+if(POLICY CMP0153)
+    cmake_policy(SET CMP0153 OLD)
+endif()
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -12,9 +20,20 @@ find_package(yaml-cpp REQUIRED)
 find_package(ZED REQUIRED)
 find_package(OpenCV REQUIRED)
 
-file(GLOB_RECURSE SOURCES
-    src/*.cpp
-    src/*.cu
+set(SOURCES
+    src/config.cpp
+    src/consumers/disk_write_consumer.cpp
+    src/consumers/network_streamer.cpp
+    src/consumers/null_consumer.cpp
+    src/frame_data.cpp
+    src/main.cpp
+    src/pipeline_runner.cpp
+    src/stages/extract_xyz.cu
+    src/stages/polarize.cu
+    src/stages/tilt_compensate.cu
+    src/stages/traversability.cu
+    src/stages/voxel_filter.cu
+    src/zed_source.cpp
 )
 
 add_executable(traversability_pipeline ${SOURCES})

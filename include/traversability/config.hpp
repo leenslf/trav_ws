@@ -65,6 +65,7 @@ struct PipelineConfig {
     VoxelFilterConfig    voxel_filter;
     PolarizeConfig       polarize;
     TraversabilityConfig traversability;
+    std::string          consumer{"network"};
     NetworkConfig        network;
     DiskWriterConfig     disk_writer;
 
