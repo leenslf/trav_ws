@@ -49,10 +49,6 @@ struct TraversabilityConfig {
     float polar_grid_size_theta_deg{5.0f};
 };
 
-struct NetworkConfig {
-    int port{5005};
-};
-
 struct DiskWriterConfig {
     std::string output_dir{"../output/frames"};
     bool write_images{true};
@@ -66,7 +62,6 @@ struct PipelineConfig {
     PolarizeConfig       polarize;
     TraversabilityConfig traversability;
     std::string          consumer{"network"};
-    NetworkConfig        network;
     DiskWriterConfig     disk_writer;
 
     static PipelineConfig load_from_file(const std::string& path);

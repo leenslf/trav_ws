@@ -2,29 +2,13 @@
 
 #include <arpa/inet.h>
 #include <cerrno>
+#include <cstdio>
 #include <cstring>
-#include <mutex>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
-#include <unordered_map>
-#include <vector>
-
 namespace {
-
-constexpr uint32_t kPacketMagic = 0x54524156u;
-constexpr std::size_t kMaxUdpPayloadBytes = 65507u;
-
-struct NetworkStreamerState {
-    sockaddr_in destination{};
-    socklen_t destination_len{sizeof(destination)};
-    std::vector<unsigned char> send_buf;
-    uint32_t seq{0};
-};
-
-std::mutex g_state_mutex;
-std::unordered_map<const NetworkStreamer*, NetworkStreamerState> g_states;
 
 std::size_t serialized_size_bytes(const TraversabilityResult& result)
 {
@@ -64,7 +48,7 @@ std::size_t serialize(unsigned char* dst,
     const std::size_t theta_edges_bytes = (nt + 1u) * sizeof(float);
 
     PacketHeader header{};
-    header.magic = kPacketMagic;
+    header.magic = NetworkStreamer::kPacketMagic;
     header.seq = seq;
     header.timestamp_ns = timestamp_ns;
     header.nr = static_cast<uint32_t>(nr);
@@ -97,7 +81,7 @@ std::size_t serialize(unsigned char* dst,
 
 } // namespace
 
-NetworkStreamer::NetworkStreamer(const NetworkConfig& cfg)
+NetworkStreamer::NetworkStreamer()
 {
     socket_fd_ = ::socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
     if (socket_fd_ < 0) {
@@ -105,31 +89,14 @@ NetworkStreamer::NetworkStreamer(const NetworkConfig& cfg)
         return;
     }
 
-    if (cfg.port <= 0 || cfg.port > 65535) {
-        errno = EINVAL;
-        std::perror("NetworkStreamer port");
-        ::close(socket_fd_);
-        socket_fd_ = -1;
-        return;
-    }
-
-    NetworkStreamerState state;
-    state.send_buf.resize(kMaxUdpPayloadBytes);
-    state.destination.sin_family = AF_INET;
-    state.destination.sin_port = htons(static_cast<uint16_t>(cfg.port));
-    state.destination.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-
-    std::lock_guard<std::mutex> lock(g_state_mutex);
-    g_states.emplace(this, std::move(state));
+    send_buf_.resize(kMaxUdpPayloadBytes);
+    destination_.sin_family = AF_INET;
+    destination_.sin_port = htons(kPort);
+    destination_.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
 }
 
 NetworkStreamer::~NetworkStreamer()
 {
-    {
-        std::lock_guard<std::mutex> lock(g_state_mutex);
-        g_states.erase(this);
-    }
-
     if (socket_fd_ >= 0) {
         ::close(socket_fd_);
     }
@@ -149,22 +116,13 @@ void NetworkStreamer::consume(const TraversabilityResult& result, uint64_t times
 
     const std::size_t packet_size = serialized_size_bytes(result);
 
-    std::lock_guard<std::mutex> lock(g_state_mutex);
-    auto it = g_states.find(this);
-    if (it == g_states.end()) {
-        errno = ENOENT;
-        std::perror("NetworkStreamer state");
-        return;
-    }
-
-    auto& state = it->second;
-    if (packet_size > state.send_buf.size()) {
+    if (packet_size > send_buf_.size()) {
         errno = EMSGSIZE;
         std::perror("NetworkStreamer packet too large");
         return;
     }
 
-    const std::size_t written = serialize(state.send_buf.data(), result, timestamp_ns, state.seq);
+    const std::size_t written = serialize(send_buf_.data(), result, timestamp_ns, seq_);
     if (written != packet_size) {
         errno = EFAULT;
         std::perror("NetworkStreamer serialization");
@@ -172,11 +130,11 @@ void NetworkStreamer::consume(const TraversabilityResult& result, uint64_t times
     }
 
     const ssize_t sent = ::sendto(socket_fd_,
-                                  state.send_buf.data(),
+                                  send_buf_.data(),
                                   packet_size,
                                   0,
-                                  reinterpret_cast<const sockaddr*>(&state.destination),
-                                  state.destination_len);
+                                  reinterpret_cast<const sockaddr*>(&destination_),
+                                  destination_len_);
     if (sent < 0) {
         std::perror("NetworkStreamer sendto");
         return;
@@ -187,5 +145,5 @@ void NetworkStreamer::consume(const TraversabilityResult& result, uint64_t times
         return;
     }
 
-    ++state.seq;
+    ++seq_;
 }

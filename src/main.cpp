@@ -36,7 +36,7 @@ std::unique_ptr<IResultConsumer> make_consumer(const PipelineConfig& cfg) {
 
     if (consumer_name == "network") {
         std::printf("[config] selected consumer: network\n");
-        return std::make_unique<NetworkStreamer>(cfg.network);
+        return std::make_unique<NetworkStreamer>();
     }
     if (consumer_name == "disk") {
         std::printf("[config] selected consumer: disk\n");

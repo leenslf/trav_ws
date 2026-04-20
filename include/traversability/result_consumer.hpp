@@ -3,7 +3,6 @@
 #define TRAVERSABILITY_RESULT_CONSUMER_HPP
 
 #include <cstdint>
-#include "traversability/config.hpp"
 #include "traversability/result.hpp"
 
 class IResultConsumer {
@@ -16,16 +15,6 @@ public:
 class NullConsumer : public IResultConsumer {
 public:
     void consume(const TraversabilityResult&, uint64_t) override;
-};
-
-class NetworkStreamer : public IResultConsumer {
-public:
-    explicit NetworkStreamer(const NetworkConfig& cfg);
-    ~NetworkStreamer() override;
-    void consume(const TraversabilityResult&, uint64_t) override;
-
-private:
-    int socket_fd_{-1};
 };
 
 #endif // TRAVERSABILITY_RESULT_CONSUMER_HPP
