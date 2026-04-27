@@ -2,8 +2,7 @@
 #include <QMainWindow>
 
 #include "frame_data.h"
-#include "protocol.h"
-#include "udp_receiver.h"
+#include "comm_map_receiver.h"
 #include "polar_grid_widget.h"
 
 int main(int argc, char *argv[])
@@ -19,8 +18,8 @@ int main(int argc, char *argv[])
     auto *widget = new PolarGridWidget(&window);
     window.setCentralWidget(widget);
 
-    auto *receiver = new UdpReceiver(5005, &window);
-    QObject::connect(receiver, &UdpReceiver::frameReceived,
+    auto *receiver = new CommMapReceiver(5000, &window);
+    QObject::connect(receiver, &CommMapReceiver::frameReceived,
                      widget,   &PolarGridWidget::updateFrame);
 
     window.show();

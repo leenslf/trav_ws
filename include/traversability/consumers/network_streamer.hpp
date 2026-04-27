@@ -20,7 +20,9 @@ static_assert(sizeof(PacketHeader) == 24, "PacketHeader must be 24 bytes");
 
 class NetworkStreamer : public IResultConsumer {
 public:
+    // Packet signature: in ASCII, those bytes are 0x54 0x52 0x41 0x56, which spells "TRAV", maybe be overengineered
     static constexpr uint32_t kPacketMagic = 0x54524156u;
+    // The largest UDP payload that fits in a normal IPv4 packet.
     static constexpr std::size_t kMaxUdpPayloadBytes = 65507u;
     static constexpr uint16_t kPort = 5005;
 
@@ -35,6 +37,7 @@ public:
     void consume(const TraversabilityResult& result, uint64_t timestamp_ns) override;
 
 private:
+    // IPv4 socket address struct that sendto() will use as the packet destination.
     sockaddr_in destination_{};
     socklen_t destination_len_{sizeof(sockaddr_in)};
     std::vector<unsigned char> send_buf_;

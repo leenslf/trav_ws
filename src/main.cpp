@@ -1,4 +1,5 @@
 #include "traversability/pipeline_runner.hpp"
+#include "traversability/consumers/comm_sender.hpp"
 #include "traversability/consumers/network_streamer.hpp"
 #include "traversability/result_consumer.hpp"
 #include "traversability/consumers/disk_write_consumer.hpp"
@@ -34,6 +35,11 @@ std::string normalize_consumer_name(std::string name) {
 std::unique_ptr<IResultConsumer> make_consumer(const PipelineConfig& cfg) {
     const std::string consumer_name = normalize_consumer_name(cfg.consumer);
 
+    if (consumer_name == "comm") {
+        std::printf("[config] selected consumer: comm (remote: %s)\n",
+                    cfg.comm_sender.remote_ip.c_str());
+        return std::make_unique<CommMapSender>(cfg.comm_sender.remote_ip);
+    }
     if (consumer_name == "network") {
         std::printf("[config] selected consumer: network\n");
         return std::make_unique<NetworkStreamer>();

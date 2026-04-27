@@ -20,8 +20,11 @@ find_package(yaml-cpp REQUIRED)
 find_package(ZED REQUIRED)
 find_package(OpenCV REQUIRED)
 
+set(LIB_ROOT "${CMAKE_SOURCE_DIR}/lib")
+
 set(SOURCES
     src/config.cpp
+    src/consumers/comm_sender.cpp
     src/consumers/disk_write_consumer.cpp
     src/consumers/network_streamer.cpp
     src/consumers/null_consumer.cpp
@@ -44,6 +47,7 @@ target_include_directories(traversability_pipeline PRIVATE
     ${EIGEN3_INCLUDE_DIR}
     ${CUDA_INCLUDE_DIRS}
     ${OpenCV_INCLUDE_DIRS}
+    ${LIB_ROOT}/include
 )
 
 target_link_libraries(traversability_pipeline PRIVATE
@@ -52,4 +56,16 @@ target_link_libraries(traversability_pipeline PRIVATE
     Eigen3::Eigen
     ${CUDA_LIBRARIES}
     ${OpenCV_LIBS}
+    ${LIB_ROOT}/libcomm.a
+    ${LIB_ROOT}/libutils.a
+    pthread
+    ssl
+    crypto
+    argon2
+    rt
+)
+
+# libcomm headers use old-style C++ patterns that require -fpermissive
+set_source_files_properties(src/consumers/comm_sender.cpp
+    PROPERTIES COMPILE_FLAGS "-fpermissive"
 )

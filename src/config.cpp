@@ -71,6 +71,9 @@ PipelineConfig PipelineConfig::load_from_file(const std::string& path) {
         if (n["output_dir"])   cfg.disk_writer.output_dir   = n["output_dir"].as<std::string>();
         if (n["write_images"]) cfg.disk_writer.write_images = n["write_images"].as<bool>();
     }
+    if (auto n = root["comm_sender"]) {
+        if (n["remote_ip"]) cfg.comm_sender.remote_ip = n["remote_ip"].as<std::string>();
+    }
 
     return cfg;
 }

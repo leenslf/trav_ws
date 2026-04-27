@@ -24,7 +24,7 @@ static_assert(sizeof(Header) == 24, "Header must be exactly 24 bytes");
 } // namespace protocol
 
 struct FrameData {
-    uint32_t seq;
+    uint32_t seq; // probably not useful while using commmanager
     uint64_t timestamp_ns;
     int nr;
     int nt;

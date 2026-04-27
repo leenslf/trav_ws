@@ -54,6 +54,10 @@ struct DiskWriterConfig {
     bool write_images{true};
 };
 
+struct CommSenderConfig {
+    std::string remote_ip{"127.0.0.1"};
+};
+
 struct PipelineConfig {
     ZEDConfig            zed;
     ExtractXYZConfig     extract_xyz;
@@ -63,6 +67,7 @@ struct PipelineConfig {
     TraversabilityConfig traversability;
     std::string          consumer{"network"};
     DiskWriterConfig     disk_writer;
+    CommSenderConfig     comm_sender;
 
     static PipelineConfig load_from_file(const std::string& path);
     static PipelineConfig defaults();

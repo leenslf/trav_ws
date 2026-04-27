@@ -24,6 +24,7 @@ std::size_t serialized_size_bytes(const TraversabilityResult& result)
 
 bool has_valid_layout(const TraversabilityResult& result)
 {
+    // Serialization expects two nr*nt grids (trav + height) plus edge arrays (r + theta) with nr/nt+1 bin boundaries.
     if (result.r_bins < 0 || result.theta_bins < 0) {
         return false;
     }
@@ -83,13 +84,17 @@ std::size_t serialize(unsigned char* dst,
 
 NetworkStreamer::NetworkStreamer()
 {
+    // Initialize a non-blocking UDP socket and preconfigure the loopback destination.
     socket_fd_ = ::socket(AF_INET, SOCK_DGRAM | SOCK_NONBLOCK | SOCK_CLOEXEC, 0);
     if (socket_fd_ < 0) {
         std::perror("NetworkStreamer socket");
         return;
     }
 
+    // Reserve enough space for the largest legal UDP payload.
     send_buf_.resize(kMaxUdpPayloadBytes);
+
+    // Send packets over IPv4 loopback to the fixed local port.
     destination_.sin_family = AF_INET;
     destination_.sin_port = htons(kPort);
     destination_.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
@@ -122,6 +127,7 @@ void NetworkStreamer::consume(const TraversabilityResult& result, uint64_t times
         return;
     }
 
+    // Pack the validated result into send_buf_ before transmission.
     const std::size_t written = serialize(send_buf_.data(), result, timestamp_ns, seq_);
     if (written != packet_size) {
         errno = EFAULT;
