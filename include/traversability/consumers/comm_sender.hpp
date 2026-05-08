@@ -8,7 +8,9 @@
 class CommManager;
 class Mailer;
 
-constexpr int COMM_MAILBOX_ID = 200;
+constexpr int TRAVMAP_MAILBOX_ID   = 200;
+constexpr int IMAGE_MAILBOX_ID     = 201;
+constexpr int IMAGE_MAX_SIZE_BYTES = 32768;  // 32 KB — conservative ceiling for 320x180 JPEG
 
 struct TravMap {
     // these numbers are hardcoded in both places for simplicity for now. 
@@ -32,4 +34,5 @@ public:
 private:
     CommManager* mgr_{nullptr};
     Mailer*      mailer_{nullptr};
+    Mailer*      image_mailer_{nullptr};
 };

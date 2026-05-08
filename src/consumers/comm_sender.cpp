@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 
 #include "libcomm.hh"
 
@@ -15,15 +16,20 @@ CommMapSender::CommMapSender(const std::string& remote_ip, int port)
     }
     const std::string dest_spec = "net: machine=" + remote_ip + ";";
     mgr_->openRemote(dest_spec.c_str());
-    mailer_ = mgr_->createMailer(dest_spec.c_str(), sizeof(TravMap), COMM_MAILBOX_ID);
+    mailer_ = mgr_->createMailer(dest_spec.c_str(), sizeof(TravMap), TRAVMAP_MAILBOX_ID);
     if (!mailer_) {
-        fprintf(stderr, "CommMapSender: could not create mailer to %s\n", remote_ip.c_str());
+        fprintf(stderr, "CommMapSender: could not create travmap mailer to %s\n", remote_ip.c_str());
+    }
+    image_mailer_ = mgr_->createMailer(dest_spec.c_str(), IMAGE_MAX_SIZE_BYTES, IMAGE_MAILBOX_ID);
+    if (!image_mailer_) {
+        fprintf(stderr, "CommMapSender: could not create image mailer to %s\n", remote_ip.c_str());
     }
 }
 
 CommMapSender::~CommMapSender()
 {
-    if (mailer_) mgr_->destroyMailer(mailer_);
+    if (mailer_)       mgr_->destroyMailer(mailer_);
+    if (image_mailer_) mgr_->destroyMailer(image_mailer_);
     delete mgr_;
 }
 
@@ -52,5 +58,21 @@ void CommMapSender::consume(const FrameResult& frame, uint64_t /*timestamp_ns*/)
     } else {
         mailer_->releaseMsg(msg);
         fprintf(stderr, "CommMapSender: message buffer too small for TravMap\n");
+    }
+
+    if (image_mailer_ && frame.has_image && !frame.image.jpeg_bytes.empty()) {
+        Message* img_msg = image_mailer_->createMsg();
+        if (img_msg) {
+            const auto& bytes = frame.image.jpeg_bytes;
+            if (bytes.size() <= static_cast<size_t>(IMAGE_MAX_SIZE_BYTES)) {
+                std::memcpy(img_msg->getData(), bytes.data(), bytes.size());
+                img_msg->setSize(static_cast<int>(bytes.size()));
+                image_mailer_->sendMsg(img_msg);
+            } else {
+                image_mailer_->releaseMsg(img_msg);
+                fprintf(stderr, "CommMapSender: JPEG (%zu B) exceeds IMAGE_MAX_SIZE_BYTES — frame dropped\n",
+                        bytes.size());
+            }
+        }
     }
 }
