@@ -3,9 +3,8 @@
 #include <QSplitter>
 
 #include "frame_data.h"
-#include "comm_map_receiver.h"
+#include "comm_receiver.h"
 #include "polar_grid_widget.h"
-#include "comm_image_receiver.h"
 #include "jpeg_viewer_widget.h"
 
 int main(int argc, char *argv[])
@@ -28,12 +27,10 @@ int main(int argc, char *argv[])
     splitter->setStretchFactor(1, 1);
     window.setCentralWidget(splitter);
 
-    auto *receiver = new CommMapReceiver(5000, &window);
-    QObject::connect(receiver, &CommMapReceiver::frameReceived,
+    auto *receiver = new CommReceiver(&window);
+    QObject::connect(receiver, &CommReceiver::frameReceived,
                      polar_grid_widget, &PolarGridWidget::updateFrame);
-
-    auto *image_receiver = new CommImageReceiver(5000, &window);
-    QObject::connect(image_receiver, &CommImageReceiver::imageReceived,
+    QObject::connect(receiver, &CommReceiver::imageReceived,
                      jpeg_viewer_widget, &JpegViewerWidget::updateImage);
 
     window.show();
