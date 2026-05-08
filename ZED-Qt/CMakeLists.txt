@@ -15,9 +15,11 @@ add_executable(zed_qt
     src/comm_map_receiver.cpp
     src/comm_image_receiver.cpp
     src/polar_grid_widget.cpp
+    src/jpeg_viewer_widget.cpp
     include/comm_map_receiver.h
     include/comm_image_receiver.h
     include/polar_grid_widget.h
+    include/jpeg_viewer_widget.h
     include/frame_data.h
 )
 
