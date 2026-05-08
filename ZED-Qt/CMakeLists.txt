@@ -13,8 +13,10 @@ set(LIB_ROOT "${CMAKE_SOURCE_DIR}/../lib")
 add_executable(zed_qt
     src/main.cpp
     src/comm_map_receiver.cpp
+    src/comm_image_receiver.cpp
     src/polar_grid_widget.cpp
     include/comm_map_receiver.h
+    include/comm_image_receiver.h
     include/polar_grid_widget.h
     include/frame_data.h
 )
@@ -38,6 +40,8 @@ target_link_libraries(zed_qt
 target_compile_options(zed_qt PRIVATE -Wall -Wextra)
 
 # libcomm headers use old-style C++ patterns that require -fpermissive
-set_source_files_properties(src/comm_map_receiver.cpp
+set_source_files_properties(
+    src/comm_map_receiver.cpp
+    src/comm_image_receiver.cpp
     PROPERTIES COMPILE_FLAGS "-fpermissive"
 )
