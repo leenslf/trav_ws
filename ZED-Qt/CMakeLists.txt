@@ -4,7 +4,7 @@ project(ZedQt VERSION 1.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt5 REQUIRED COMPONENTS Widgets Network)
+find_package(Qt5 REQUIRED COMPONENTS Widgets)
 
 set(CMAKE_AUTOMOC ON)
 
@@ -13,13 +13,10 @@ set(LIB_ROOT "${CMAKE_SOURCE_DIR}/../lib")
 add_executable(zed_qt
     src/main.cpp
     src/comm_map_receiver.cpp
-    src/udp_receiver.cpp
     src/polar_grid_widget.cpp
     include/comm_map_receiver.h
-    include/udp_receiver.h
     include/polar_grid_widget.h
     include/frame_data.h
-    include/protocol.h
 )
 
 target_include_directories(zed_qt PRIVATE
@@ -29,7 +26,6 @@ target_include_directories(zed_qt PRIVATE
 
 target_link_libraries(zed_qt
     Qt5::Widgets
-    Qt5::Network
     ${LIB_ROOT}/libcomm.a
     ${LIB_ROOT}/libutils.a
     pthread
