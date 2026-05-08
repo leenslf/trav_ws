@@ -41,3 +41,16 @@ target_compile_options(zed_qt PRIVATE -Wall -Wextra)
 set_source_files_properties(src/comm_map_receiver.cpp
     PROPERTIES COMPILE_FLAGS "-fpermissive"
 )
+
+# ASan + UBSan support — opt-in via -DENABLE_SANITIZERS=ON (default OFF).
+# This target is pure C++ (no CUDA), so flags apply unconditionally to all sources.
+option(ENABLE_SANITIZERS "Enable AddressSanitizer and UBSan for CPU code" OFF)
+if(ENABLE_SANITIZERS)
+    target_compile_options(zed_qt PRIVATE
+        -fsanitize=address,undefined
+        -fno-omit-frame-pointer
+    )
+    target_link_options(zed_qt PRIVATE
+        -fsanitize=address,undefined
+    )
+endif()

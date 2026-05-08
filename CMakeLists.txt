@@ -69,3 +69,19 @@ target_link_libraries(traversability_pipeline PRIVATE
 set_source_files_properties(src/consumers/comm_sender.cpp
     PROPERTIES COMPILE_FLAGS "-fpermissive"
 )
+
+# ASan + UBSan support — opt-in via -DENABLE_SANITIZERS=ON (default OFF).
+# CUDA source files (.cu) are compiled by nvcc, which does not accept -fsanitize
+# and will fail with a hard error if the flag reaches it. The COMPILE_LANGUAGE:CXX
+# generator expression ensures sanitizer compile flags are only emitted for C++
+# translation units, never for nvcc invocations of .cu files.
+option(ENABLE_SANITIZERS "Enable AddressSanitizer and UBSan for CPU code" OFF)
+if(ENABLE_SANITIZERS)
+    target_compile_options(traversability_pipeline PRIVATE
+        $<$<COMPILE_LANGUAGE:CXX>:-fsanitize=address,undefined>
+        $<$<COMPILE_LANGUAGE:CXX>:-fno-omit-frame-pointer>
+    )
+    target_link_options(traversability_pipeline PRIVATE
+        -fsanitize=address,undefined
+    )
+endif()
