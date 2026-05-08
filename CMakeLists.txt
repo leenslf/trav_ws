@@ -31,6 +31,7 @@ set(SOURCES
     src/frame_data.cpp
     src/main.cpp
     src/pipeline_runner.cpp
+    src/stages/encode_image.cpp
     src/stages/extract_xyz.cu
     src/stages/polarize.cu
     src/stages/tilt_compensate.cu

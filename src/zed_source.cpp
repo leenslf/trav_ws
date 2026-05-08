@@ -111,6 +111,12 @@ bool ZEDSource::capture(FrameData& frame) {
         return false;
     }
 
+    // Retrieve CPU-side left image for the encode stage (BGRA, U8_C4).
+    if (camera_.retrieveImage(frame.image_raw, sl::VIEW::LEFT, sl::MEM::CPU)
+            != sl::ERROR_CODE::SUCCESS) {
+        return false;
+    }
+
     if (frame.raw_points.ptr != nullptr && frame.raw_points.ptr_owned_) {
         cudaFree(frame.raw_points.ptr);
     }

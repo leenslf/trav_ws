@@ -67,6 +67,10 @@ PipelineConfig PipelineConfig::load_from_file(const std::string& path) {
         if (n["polar_grid_size_r_m"])        cfg.traversability.polar_grid_size_r_m        = n["polar_grid_size_r_m"].as<float>();
         if (n["polar_grid_size_theta_deg"])  cfg.traversability.polar_grid_size_theta_deg  = n["polar_grid_size_theta_deg"].as<float>();
     }
+    if (auto n = root["image_encode"]) {
+        if (n["scale"])        cfg.image_encode.scale        = n["scale"].as<float>();
+        if (n["jpeg_quality"]) cfg.image_encode.jpeg_quality = n["jpeg_quality"].as<int>();
+    }
     if (auto n = root["disk_writer"]) {
         if (n["output_dir"])   cfg.disk_writer.output_dir   = n["output_dir"].as<std::string>();
         if (n["write_images"]) cfg.disk_writer.write_images = n["write_images"].as<bool>();

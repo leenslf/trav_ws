@@ -90,8 +90,8 @@ void PipelineRunner::run_frame() {
     auto& slot                 = publisher_.acquire_write_slot();
     slot.result.traversability = frame_.result;
     slot.result.timestamp_ns   = frame_.timestamp_ns;
-    slot.result.has_image      = false;
-    // TODO: populate image when ZEDSource capture is wired
+    slot.result.has_image      = frame_.image_encoded.valid;
+    slot.result.image          = frame_.image_encoded;
     publisher_.publish(slot);
 }
 

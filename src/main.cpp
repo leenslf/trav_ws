@@ -9,6 +9,7 @@
 #include "traversability/stages/voxel_filter.hpp"
 #include "traversability/stages/polarize.hpp"
 #include "traversability/stages/traversability.hpp"
+#include "traversability/stages/encode_image.hpp"
 #include <algorithm>
 #include <csignal>
 #include <cctype>
@@ -70,6 +71,7 @@ int main(int argc, char** argv) {
     
 
     std::vector<std::unique_ptr<IPipelineStage>> stages;
+    stages.push_back(std::make_unique<EncodeImageStage>());
     stages.push_back(std::make_unique<ExtractXYZStage>());
     stages.push_back(std::make_unique<TiltCompensateStage>());
     stages.push_back(std::make_unique<VoxelFilterStage>());

@@ -49,6 +49,11 @@ struct TraversabilityConfig {
     float polar_grid_size_theta_deg{5.0f};
 };
 
+struct ImageEncodeConfig {
+    float scale{0.25f};
+    int   jpeg_quality{50};
+};
+
 struct DiskWriterConfig {
     std::string output_dir{"../output/frames"};
     bool write_images{true};
@@ -65,6 +70,7 @@ struct PipelineConfig {
     VoxelFilterConfig    voxel_filter;
     PolarizeConfig       polarize;
     TraversabilityConfig traversability;
+    ImageEncodeConfig    image_encode;
     std::string          consumer{"network"};
     DiskWriterConfig     disk_writer;
     CommSenderConfig     comm_sender;
