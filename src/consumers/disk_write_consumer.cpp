@@ -13,9 +13,11 @@ DiskWriteConsumer::DiskWriteConsumer(std::string output_dir, bool write_images)
     std::filesystem::create_directories(output_dir_);
 }
 
-void DiskWriteConsumer::consume(const TraversabilityResult& result,
+void DiskWriteConsumer::consume(const FrameResult& frame,
                                 uint64_t /*timestamp_ns*/)
 {
+    const TraversabilityResult& result = frame.traversability;
+
     if (write_images_) {
         cv::Mat img = colorize(result);
 

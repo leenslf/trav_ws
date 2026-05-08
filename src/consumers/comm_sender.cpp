@@ -27,9 +27,11 @@ CommMapSender::~CommMapSender()
     delete mgr_;
 }
 
-void CommMapSender::consume(const TraversabilityResult& result, uint64_t /*timestamp_ns*/)
+void CommMapSender::consume(const FrameResult& frame, uint64_t /*timestamp_ns*/)
 {
     if (!mailer_) return;
+
+    const TraversabilityResult& result = frame.traversability;
 
     if (result.r_bins != TravMap::HEIGHT || result.theta_bins != TravMap::WIDTH) {
         fprintf(stderr, "CommMapSender: expected %dx%d grid, got %dx%d\n",

@@ -27,7 +27,7 @@ public:
     CommMapSender(CommMapSender&&)                 = delete;
     CommMapSender& operator=(CommMapSender&&)      = delete;
 
-    void consume(const TraversabilityResult& result, uint64_t timestamp_ns) override;
+    void consume(const FrameResult& frame, uint64_t timestamp_ns) override;
 
 private:
     CommManager* mgr_{nullptr};

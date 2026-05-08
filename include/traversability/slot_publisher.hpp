@@ -2,7 +2,7 @@
 #ifndef TRAVERSABILITY_SLOT_PUBLISHER_HPP
 #define TRAVERSABILITY_SLOT_PUBLISHER_HPP
 
-#include "traversability/result.hpp"
+#include "traversability/frame_result.hpp"
 
 #include <array>
 #include <atomic>
@@ -24,8 +24,7 @@ enum class SlotState {
 // One storage slot inside SlotPublisher. The producer writes result payload and
 // timestamp while the slot is in Writing, then readers observe it after publish.
 struct ResultSlot {
-    TraversabilityResult result;
-    uint64_t             timestamp_ns{0};
+    FrameResult            result;
     std::atomic<SlotState> state{SlotState::Free};
 };
 

@@ -1,3 +1,3 @@
 #include "traversability/result_consumer.hpp"
 
-void NullConsumer::consume(const TraversabilityResult&, uint64_t) {}
+void NullConsumer::consume(const FrameResult&, uint64_t) {}

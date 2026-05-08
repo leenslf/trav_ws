@@ -9,7 +9,7 @@ class DiskWriteConsumer : public IResultConsumer {
 public:
     DiskWriteConsumer(std::string output_dir, bool write_images = true);
 
-    void consume(const TraversabilityResult& result,
+    void consume(const FrameResult& frame,
                  uint64_t timestamp_ns) override;
 
 private:

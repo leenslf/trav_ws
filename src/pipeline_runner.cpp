@@ -87,9 +87,11 @@ void PipelineRunner::run_frame() {
     cudaStreamSynchronize(stream_);
     ++metrics_.frames_processed;
 
-    auto& slot        = publisher_.acquire_write_slot();
-    slot.result       = frame_.result;
-    slot.timestamp_ns = frame_.timestamp_ns;
+    auto& slot                 = publisher_.acquire_write_slot();
+    slot.result.traversability = frame_.result;
+    slot.result.timestamp_ns   = frame_.timestamp_ns;
+    slot.result.has_image      = false;
+    // TODO: populate image when ZEDSource capture is wired
     publisher_.publish(slot);
 }
 
@@ -101,7 +103,7 @@ void PipelineRunner::consumer_loop(IResultConsumer& consumer) {
             publisher_.release(slot);
             break;
         }
-        consumer.consume(slot.result, slot.timestamp_ns);
+        consumer.consume(slot.result, slot.result.timestamp_ns);
         last_seen = &slot;
         publisher_.release(slot);
     }

@@ -107,11 +107,13 @@ NetworkStreamer::~NetworkStreamer()
     }
 }
 
-void NetworkStreamer::consume(const TraversabilityResult& result, uint64_t timestamp_ns)
+void NetworkStreamer::consume(const FrameResult& frame, uint64_t timestamp_ns)
 {
     if (socket_fd_ < 0) {
         return;
     }
+
+    const TraversabilityResult& result = frame.traversability;
 
     if (!has_valid_layout(result)) {
         errno = EINVAL;

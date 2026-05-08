@@ -34,7 +34,7 @@ public:
     NetworkStreamer(NetworkStreamer&&) = delete;
     NetworkStreamer& operator=(NetworkStreamer&&) = delete;
 
-    void consume(const TraversabilityResult& result, uint64_t timestamp_ns) override;
+    void consume(const FrameResult& frame, uint64_t timestamp_ns) override;
 
 private:
     // IPv4 socket address struct that sendto() will use as the packet destination.

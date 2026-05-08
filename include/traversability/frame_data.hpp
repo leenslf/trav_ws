@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <cuda_runtime.h>
+#include "traversability/image_payload.hpp"
 #include "traversability/result.hpp"
 #include "traversability/config.hpp"
 
@@ -39,6 +40,7 @@ struct FrameData {
     // Input
     GpuBuffer<float4>  raw_points;
     int                raw_count{0};
+    ImagePayload       image_raw;
     // After ExtractXYZ
     GpuBuffer<float3>  finite_points;
     int                finite_count{0};
