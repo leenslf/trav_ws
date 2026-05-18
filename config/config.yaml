@@ -12,6 +12,16 @@ zed:
   svo_real_time: true 
   fps: 30
   frame_skip: 0
+  # SLAM / positional tracking
+  # Options: GEN_1 (lower CPU), GEN_3 (better accuracy, recommended)
+  tracking_mode: GEN_3
+  # Loop closure: corrects drift when the robot revisits known areas.
+  # Disable if memory is constrained or the robot never revisits locations.
+  enable_area_memory: true
+  # Fuse IMU with visual odometry. Disable only for IMU-less SVO replay.
+  enable_imu_fusion: true
+  # Temporal low-pass filter on pose output. Adds latency; keep false for control loops.
+  enable_pose_smoothing: false
 
 
 voxel_filter:

@@ -40,7 +40,11 @@ PipelineConfig PipelineConfig::load_from_file(const std::string& path) {
         if (n["svo_path"])          cfg.zed.svo_path          = n["svo_path"].as<std::string>();
         if (n["svo_real_time"])     cfg.zed.svo_real_time     = n["svo_real_time"].as<bool>();
         if (n["fps"])               cfg.zed.fps               = n["fps"].as<int>();
-        if (n["frame_skip"])        cfg.zed.frame_skip        = n["frame_skip"].as<int>();
+        if (n["frame_skip"])            cfg.zed.frame_skip            = n["frame_skip"].as<int>();
+        if (n["tracking_mode"])         cfg.zed.tracking_mode         = n["tracking_mode"].as<std::string>();
+        if (n["enable_area_memory"])    cfg.zed.enable_area_memory    = n["enable_area_memory"].as<bool>();
+        if (n["enable_imu_fusion"])     cfg.zed.enable_imu_fusion     = n["enable_imu_fusion"].as<bool>();
+        if (n["enable_pose_smoothing"]) cfg.zed.enable_pose_smoothing = n["enable_pose_smoothing"].as<bool>();
         const auto dims = zed_resolution_to_dims(cfg.zed.resolution);
         cfg.zed.w = dims.first;
         cfg.zed.h = dims.second;

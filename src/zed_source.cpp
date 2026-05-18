@@ -43,6 +43,12 @@ sl::RESOLUTION parse_resolution(const std::string& value) {
     throw std::runtime_error("ZEDSource: unknown resolution: " + value);
 }
 
+sl::POSITIONAL_TRACKING_MODE parse_tracking_mode(const std::string& value) {
+    if (value == "GEN_1") return sl::POSITIONAL_TRACKING_MODE::GEN_1;
+    if (value == "GEN_3") return sl::POSITIONAL_TRACKING_MODE::GEN_3;
+    throw std::runtime_error("ZEDSource: unknown tracking_mode: " + value);
+}
+
 } // namespace
 
 void ZEDSource::init(const ZEDConfig& cfg) {
@@ -66,8 +72,14 @@ void ZEDSource::init(const ZEDConfig& cfg) {
         throw std::runtime_error("ZEDSource: failed to open camera");
     }
 
+    sl::PositionalTrackingParameters tracking_params;
+    tracking_params.mode              = parse_tracking_mode(cfg.tracking_mode);  // GEN_3 has better accuracy; use GEN_1 only to reduce CPU load
+    tracking_params.enable_area_memory    = cfg.enable_area_memory;   // loop closure: correct drift when revisiting known areas
+    tracking_params.enable_imu_fusion     = cfg.enable_imu_fusion;    // fuse IMU with visual odometry; disable for IMU-less SVO replay
+    tracking_params.enable_pose_smoothing = cfg.enable_pose_smoothing; // temporal low-pass on pose; adds latency, leave false for control loops
+
     const sl::ERROR_CODE tracking_err =
-        camera_.enablePositionalTracking(sl::PositionalTrackingParameters());
+        camera_.enablePositionalTracking(tracking_params);
     if (tracking_err != sl::ERROR_CODE::SUCCESS) {
         camera_.close();
         std::cerr << "[zed] enablePositionalTracking failed: "

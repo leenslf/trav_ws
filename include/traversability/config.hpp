@@ -13,6 +13,38 @@ struct ZEDConfig {
     int         w{1280};
     int         h{720};
     int         frame_skip{0};
+
+    /// @name SLAM / Positional Tracking
+    /// @{
+    ///
+    /// @var tracking_mode
+    ///   https://www.stereolabs.com/docs/positional-tracking/positional-tracking-modes
+    ///   SLAM algorithm generation. Valid values: "GEN_1", "GEN_3".
+    ///   GEN_1 — legacy mode with lower CPU overhead. 
+    ///           Reliable for open-field outdoor robotics or inspection tasks.
+    ///   GEN_3 — improved accuracy and loop-closure robustness (recommended).
+    ///           Designed for feature-rich environments such as indoor facilities, warehouses, offices, and structured outdoor scenes.
+    ///
+    /// @var enable_area_memory
+    ///   When true, the camera builds and reuses a spatial map so that pose
+    ///   drift is corrected when the robot revisits a previously seen area
+    ///   (loop closure). Disable to reduce memory usage if the robot never
+    ///   revisits locations or if deterministic replay is needed.
+    ///
+    /// @var enable_imu_fusion
+    ///   Fuses on-board IMU measurements with visual odometry to maintain
+    ///   tracking under fast motion, motion blur, or texture-poor scenes.
+    ///   Disable only when replaying SVO files recorded without IMU data.
+    ///
+    /// @var enable_pose_smoothing
+    ///   Applies a temporal low-pass filter to reduce jitter in the output
+    ///   pose. Introduces a small latency penalty; keep false for
+    ///   latency-sensitive control loops.
+    /// @}
+    std::string tracking_mode{"GEN_3"};
+    bool        enable_area_memory{true};
+    bool        enable_imu_fusion{true};
+    bool        enable_pose_smoothing{false};
 };
 
 // Returns {width, height} in pixels for a given ZED resolution string.
