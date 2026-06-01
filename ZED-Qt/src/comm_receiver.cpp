@@ -33,9 +33,15 @@ CommReceiver::CommReceiver(QObject* parent)
         fprintf(stderr, "CommReceiver: could not create image mailbox\n");
         return;
     }
+    pose_box_ = mgr_->createMailbox(sizeof(PoseMsg), POSE_MAILBOX_ID);
+    if (!pose_box_) {
+        fprintf(stderr, "CommReceiver: could not create pose mailbox\n");
+        return;
+    }
     running_ = true;
     map_thread_   = std::thread(&CommReceiver::mapLoop, this);
     image_thread_ = std::thread(&CommReceiver::imageLoop, this);
+    pose_thread_  = std::thread(&CommReceiver::poseLoop, this);
 }
 
 CommReceiver::~CommReceiver()
@@ -43,8 +49,10 @@ CommReceiver::~CommReceiver()
     running_ = false;
     if (map_thread_.joinable())   map_thread_.join();
     if (image_thread_.joinable()) image_thread_.join();
+    if (pose_thread_.joinable())  pose_thread_.join();
     if (map_box_)   mgr_->destroyMailbox(map_box_);
     if (image_box_) mgr_->destroyMailbox(image_box_);
+    if (pose_box_)  mgr_->destroyMailbox(pose_box_);
     delete mgr_;
 }
 
@@ -92,5 +100,24 @@ void CommReceiver::imageLoop()
 
         emit imageReceived(jpeg);
         image_seq_++;
+    }
+}
+
+void CommReceiver::poseLoop()
+{
+    while (running_) {
+        Message* msg = pose_box_->waitData(200);
+        if (!msg) continue;
+
+        PoseMsg pose;
+        if (!msg->getStruct(&pose)) {
+            fprintf(stderr, "CommReceiver: pose message too small\n");
+            pose_box_->releaseMsg(msg);
+            continue;
+        }
+        pose_box_->releaseMsg(msg);
+
+        emit poseReceived(pose);
+        pose_seq_++;
     }
 }

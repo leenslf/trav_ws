@@ -24,12 +24,17 @@ CommMapSender::CommMapSender(const std::string& remote_ip, int port)
     if (!image_mailer_) {
         fprintf(stderr, "CommMapSender: could not create image mailer to %s\n", remote_ip.c_str());
     }
+    pose_mailer_ = mgr_->createMailer(dest_spec.c_str(), sizeof(PoseMsg), POSE_MAILBOX_ID);
+    if (!pose_mailer_) {
+        fprintf(stderr, "CommMapSender: could not create pose mailer to %s\n", remote_ip.c_str());
+    }
 }
 
 CommMapSender::~CommMapSender()
 {
     if (mailer_)       mgr_->destroyMailer(mailer_);
     if (image_mailer_) mgr_->destroyMailer(image_mailer_);
+    if (pose_mailer_)  mgr_->destroyMailer(pose_mailer_);
     delete mgr_;
 }
 
@@ -58,6 +63,13 @@ void CommMapSender::consume(const FrameResult& frame, uint64_t /*timestamp_ns*/)
     } else {
         mailer_->releaseMsg(msg);
         fprintf(stderr, "CommMapSender: message buffer too small for TravMap\n");
+    }
+
+    if (pose_mailer_) {
+        PoseMsg pose_msg{frame.camera_pose, static_cast<uint8_t>(frame.tracking_state)};
+        auto* msg = pose_mailer_->createMsg();
+        msg->setStruct(&pose_msg);
+        pose_mailer_->sendMsg(msg);
     }
 
     if (image_mailer_ && frame.has_image && !frame.image.jpeg_bytes.empty()) {
