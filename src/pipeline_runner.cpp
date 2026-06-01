@@ -87,11 +87,13 @@ void PipelineRunner::run_frame() {
     cudaStreamSynchronize(stream_);
     ++metrics_.frames_processed;
 
-    auto& slot                 = publisher_.acquire_write_slot();
-    slot.result.traversability = frame_.result;
-    slot.result.timestamp_ns   = frame_.timestamp_ns;
-    slot.result.has_image      = frame_.image_encoded.valid;
-    slot.result.image          = frame_.image_encoded;
+    auto& slot                  = publisher_.acquire_write_slot();
+    slot.result.traversability  = frame_.result;
+    slot.result.timestamp_ns    = frame_.timestamp_ns;
+    slot.result.has_image       = frame_.image_encoded.valid;
+    slot.result.image           = frame_.image_encoded;
+    slot.result.camera_pose     = frame_.camera_pose;
+    slot.result.tracking_state  = frame_.tracking_state;
     publisher_.publish(slot);
 }
 

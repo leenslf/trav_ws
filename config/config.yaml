@@ -7,7 +7,7 @@ zed:
   depth_mode: PERFORMANCE
   # fix this hardcoding
   resolution: HD720
-  svo_path: ""
+  svo_path: "/home/leen/Documents/ZED/TRANSLATE12M.svo2"
   # When svo_real_time_mode = true, the ZED SDK throttles SVO playback to match the original recording FPS. 
   svo_real_time: true 
   fps: 30

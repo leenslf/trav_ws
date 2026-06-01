@@ -6,6 +6,7 @@
 #include <cuda_runtime.h>
 #include <sl/Camera.hpp>
 #include "traversability/image_payload.hpp"
+#include "traversability/pose.hpp"
 #include "traversability/result.hpp"
 #include "traversability/config.hpp"
 
@@ -35,8 +36,6 @@ struct GpuBuffer {
     GpuBuffer& operator=(GpuBuffer&&)      = default;
 };
 
-struct Quaternion { float x{0}, y{0}, z{0}, w{1}; };
-
 struct FrameData {
     // Input
     GpuBuffer<float4>  raw_points;
@@ -58,7 +57,8 @@ struct FrameData {
     TraversabilityResult result;
     // Metadata
     uint64_t           timestamp_ns{0};
-    Quaternion         camera_pose;
+    CameraPose         camera_pose;
+    TrackingState      tracking_state{TrackingState::UNAVAILABLE};
 
     // Allocates all GPU buffers once at startup.
     //

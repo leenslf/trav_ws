@@ -30,9 +30,9 @@ void TiltCompensateStage::process(FrameData& frame, cudaStream_t stream) {
     const int N = frame.finite_count;
     if (N == 0) return;
 
-    // 1. Normalize quaternion (x, y, z, w) — ZED SDK / Quaternion struct order
-    float qx = frame.camera_pose.x, qy = frame.camera_pose.y,
-          qz = frame.camera_pose.z, qw = frame.camera_pose.w;
+    // 1. Normalize quaternion
+    float qx = frame.camera_pose.qx, qy = frame.camera_pose.qy,
+          qz = frame.camera_pose.qz, qw = frame.camera_pose.qw;
     const float norm = sqrtf(qx*qx + qy*qy + qz*qz + qw*qw);
     if (norm > 1e-6f) { qx /= norm; qy /= norm; qz /= norm; qw /= norm; }
 

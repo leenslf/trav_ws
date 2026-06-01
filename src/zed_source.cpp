@@ -146,9 +146,57 @@ bool ZEDSource::capture(FrameData& frame) {
     frame.raw_count             = width_ * height_;
 
     sl::Pose zed_pose;
-    camera_.getPosition(zed_pose);
+    const sl::POSITIONAL_TRACKING_STATE tracking_state = camera_.getPosition(zed_pose);
+    const sl::Translation t   = zed_pose.getTranslation();
     const sl::Orientation ori = zed_pose.getOrientation();
-    frame.camera_pose = Quaternion{ori.ox, ori.oy, ori.oz, ori.ow};
+    frame.camera_pose = CameraPose{t.tx, t.ty, t.tz, ori.ox, ori.oy, ori.oz, ori.ow};
+
+    switch (tracking_state) {
+        case sl::POSITIONAL_TRACKING_STATE::OK:
+            frame.tracking_state = TrackingState::OK;                    break;
+        case sl::POSITIONAL_TRACKING_STATE::SEARCHING:
+            frame.tracking_state = TrackingState::SEARCHING;             break;
+        case sl::POSITIONAL_TRACKING_STATE::FPS_TOO_LOW:
+            frame.tracking_state = TrackingState::FPS_TOO_LOW;           break;
+        case sl::POSITIONAL_TRACKING_STATE::SEARCHING_FLOOR_PLANE:
+            frame.tracking_state = TrackingState::SEARCHING_FLOOR_PLANE; break;
+        default:
+            frame.tracking_state = TrackingState::UNAVAILABLE;           break;
+    }
+
+    static int throttle_frame = 0;
+    if (throttle_frame++ % 30 == 0) {
+        std::fprintf(stderr, "[ZED] tracking: %-14s  tx=%7.3f  ty=%7.3f  tz=%7.3f\n",
+                     sl::toString(tracking_state).c_str(), t.tx, t.ty, t.tz);
+    }
+
+    const sl::PositionalTrackingStatus tracking_status = camera_.getPositionalTrackingStatus();
+    static sl::ODOMETRY_STATUS       last_odometry = static_cast<sl::ODOMETRY_STATUS>(-1);
+    static sl::SPATIAL_MEMORY_STATUS last_spatial  = static_cast<sl::SPATIAL_MEMORY_STATUS>(-1);
+
+    if (tracking_status.odometry_status != last_odometry) {
+        if (last_odometry == static_cast<sl::ODOMETRY_STATUS>(-1)) {
+            std::fprintf(stderr, "[ZED] odometry_status: %s\n",
+                         sl::toString(tracking_status.odometry_status).c_str());
+        } else {
+            std::fprintf(stderr, "[ZED] odometry_status changed: %s -> %s\n",
+                         sl::toString(last_odometry).c_str(),
+                         sl::toString(tracking_status.odometry_status).c_str());
+        }
+        last_odometry = tracking_status.odometry_status;
+    }
+
+    if (tracking_status.spatial_memory_status != last_spatial) {
+        if (last_spatial == static_cast<sl::SPATIAL_MEMORY_STATUS>(-1)) {
+            std::fprintf(stderr, "[ZED] spatial_memory_status: %s\n",
+                         sl::toString(tracking_status.spatial_memory_status).c_str());
+        } else {
+            std::fprintf(stderr, "[ZED] spatial_memory_status changed: %s -> %s\n",
+                         sl::toString(last_spatial).c_str(),
+                         sl::toString(tracking_status.spatial_memory_status).c_str());
+        }
+        last_spatial = tracking_status.spatial_memory_status;
+    }
 
     frame.timestamp_ns = camera_.getTimestamp(sl::TIME_REFERENCE::IMAGE).getNanoseconds();
 
