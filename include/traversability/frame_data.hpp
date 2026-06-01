@@ -5,9 +5,7 @@
 #include <cstdint>
 #include <cuda_runtime.h>
 #include <sl/Camera.hpp>
-#include "traversability/image_payload.hpp"
-#include "traversability/pose.hpp"
-#include "traversability/result.hpp"
+#include "traversability/frame_result.hpp"
 #include "traversability/config.hpp"
 
 template<typename T>

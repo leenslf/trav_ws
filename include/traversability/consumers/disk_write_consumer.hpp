@@ -1,6 +1,6 @@
 #pragma once
 #include "traversability/result_consumer.hpp"
-#include "traversability/result.hpp"
+#include "traversability/frame_result.hpp"
 #include <opencv2/core.hpp>
 #include <string>
 #include <cstdint>
