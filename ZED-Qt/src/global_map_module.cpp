@@ -12,13 +12,16 @@ namespace {
 constexpr float kRMinM       =  0.3f;
 constexpr float kDrM         =  0.10f;   // polar_grid_size_r_m
 constexpr float kThetaMinDeg = -45.0f;
-constexpr float kDthetaDeg   =  12.0f;   // polar_grid_size_theta_deg
+constexpr float kDthetaDeg   =  10.0f;   // polar_grid_size_theta_deg
 
-// V1 global map: fixed 20 m × 20 m (±10 m around first fusable pose), non-growable.
+// V1 global map: fixed 10 m × 10 m (±5 m around first fusable pose), non-growable.
 // Cells that fall outside the initial window are silently counted via
 // GlobalMap::out_of_bounds_count().  This is a known v1 limitation.
-constexpr float kMapHalfExtent = 10.0f;                                      // metres
-constexpr int   kMapCells = static_cast<int>(2.0f * kMapHalfExtent / kDrM); // 200
+// TODO: hardcoded for now (10m x 10m). Make configurable (e.g. via
+// PipelineConfig / config.yaml) once the global map size needs to vary.
+constexpr float kMapHalfExtent = 5.0f;   // metres
+constexpr float kMapResM        = 0.25f;  // global-map cell size (independent of kDrM)
+constexpr int   kMapCells = static_cast<int>(2.0f * kMapHalfExtent / kMapResM); // 40
 
 } // namespace
 
@@ -37,8 +40,23 @@ const global_map::GlobalMap& GlobalMapModule::globalMap() const
     return *map_;
 }
 
+bool GlobalMapModule::lastCameraPose(float& tx, float& ty, float& yaw) const
+{
+    if (!has_pose_) return false;
+    tx  = last_tx_;
+    ty  = last_ty_;
+    yaw = last_yaw_;
+    return true;
+}
+
 void GlobalMapModule::onFrameReceived(const FrameData& frame)
 {
+    last_tx_  = frame.tx;
+    last_ty_  = frame.ty;
+    last_yaw_ = std::atan2(2.f * (frame.qw * frame.qz + frame.qx * frame.qy),
+                           1.f - 2.f * (frame.qy * frame.qy + frame.qz * frame.qz));
+    has_pose_ = true;
+
     // Gate: skip frames whose pose is unreliable.
     if (!fusion::is_fusable(static_cast<TrackingState>(frame.tracking_state)))
         return;
@@ -48,7 +66,7 @@ void GlobalMapModule::onFrameReceived(const FrameData& frame)
         const float ox = frame.tx - kMapHalfExtent;
         const float oy = frame.ty - kMapHalfExtent;
         map_ = std::make_unique<global_map::GlobalMap>(
-            kMapCells, kMapCells, kDrM, ox, oy, fusion::overwrite);
+            kMapCells, kMapCells, kMapResM, ox, oy, fusion::overwrite);
         initialized_ = true;
     }
 

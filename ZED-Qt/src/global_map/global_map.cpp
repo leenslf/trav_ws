@@ -35,6 +35,9 @@ void GlobalMap::update_cell(float x_world, float y_world, float value) {
 const std::vector<float>& GlobalMap::cells()             const { return cells_; }
 int                        GlobalMap::width()             const { return width_; }
 int                        GlobalMap::height()            const { return height_; }
+float                      GlobalMap::resolution_m()      const { return resolution_m_; }
+float                      GlobalMap::origin_x()          const { return origin_x_; }
+float                      GlobalMap::origin_y()          const { return origin_y_; }
 uint64_t                   GlobalMap::out_of_bounds_count() const { return out_of_bounds_count_; }
 
 } // namespace global_map

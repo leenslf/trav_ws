@@ -24,6 +24,9 @@ public:
     const std::vector<float>& cells() const;
     int      width()              const;
     int      height()             const;
+    float    resolution_m()       const;
+    float    origin_x()           const;
+    float    origin_y()           const;
     uint64_t out_of_bounds_count() const;
 
 private:

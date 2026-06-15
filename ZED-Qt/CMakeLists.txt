@@ -46,14 +46,16 @@ set_source_files_properties(
     PROPERTIES COMPILE_FLAGS "-fpermissive"
 )
 
-# --- global_map: Phase 3 integration into zed_qt ---
-# include/global_map_module.h is listed explicitly so AUTOMOC processes Q_OBJECT.
+# --- global_map: Phase 3+4 integration into zed_qt ---
+# Headers with Q_OBJECT listed explicitly so AUTOMOC processes them.
 target_sources(zed_qt PRIVATE
     src/global_map/local_to_world.cpp
     src/global_map/global_map.cpp
     src/global_map/fusion_rules.cpp
     src/global_map_module.cpp
     include/global_map_module.h
+    src/global_map_widget.cpp
+    include/global_map_widget.h
 )
 
 # --- global_map: local→world geometry module and its unit test ---

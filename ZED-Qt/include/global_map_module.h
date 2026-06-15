@@ -19,10 +19,16 @@ public:
     const global_map::GlobalMap& globalMap() const;
     bool isInitialized() const;
 
+    // Returns false if no frame has been received yet.
+    // yaw is in radians, counter-clockwise from +x_world.
+    bool lastCameraPose(float& tx, float& ty, float& yaw) const;
+
 public slots:
     void onFrameReceived(const FrameData& frame);
 
 private:
     std::unique_ptr<global_map::GlobalMap> map_;
-    bool initialized_{false};
+    bool  initialized_{false};
+    float last_tx_{0.f}, last_ty_{0.f}, last_yaw_{0.f};
+    bool  has_pose_{false};
 };
