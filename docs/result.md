@@ -40,8 +40,6 @@ Polar-grid traversability map produced by `TraversabilityStage::process()` each 
 |---|---|---|
 | `trav_grid` | `vector<float>` | Row-major traversability values (`r_bins × theta_bins`) |
 | `height_map` | `vector<float>` | Row-major height values, same layout |
-| `r_edges` | `vector<float>` | Radial bin edges, size `r_bins + 1` |
-| `theta_edges` | `vector<float>` | Angular bin edges, size `theta_bins + 1` |
 | `r_bins` | `int` | Number of radial bins |
 | `theta_bins` | `int` | Number of angular bins |
 

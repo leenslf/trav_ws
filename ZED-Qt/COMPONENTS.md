@@ -30,7 +30,6 @@ Carries one decoded frame, passed via Qt signals to widgets:
 - `timestamp_ns` — frame capture time (from `FrameBundle`)
 - `nr`, `nt` — grid dimensions (17 × 19)
 - `trav_grid` — flat `nr × nt` float array; `0.0`=traversable, `1.0`=obstacle, `NaN`=unknown
-- `r_edges`, `theta_edges` — cell boundary arrays (reserved, not yet populated)
 - `tx, ty, tz` — camera translation (metres, from `FrameBundle`)
 - `qx, qy, qz, qw` — camera orientation quaternion (from `FrameBundle`)
 - `tracking_state` — ZED tracking state as `uint8_t` (from `FrameBundle`)
