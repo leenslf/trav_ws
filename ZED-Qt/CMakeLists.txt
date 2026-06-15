@@ -53,3 +53,15 @@ add_executable(test_local_to_world
 )
 target_include_directories(test_local_to_world PRIVATE include)
 target_compile_options(test_local_to_world PRIVATE -Wall -Wextra)
+
+# --- global_map: container + fusion rules and their unit test ---
+# fusion_rules.h includes traversability/frame_result.hpp (no Qt/CUDA deps).
+# Not yet linked into zed_qt; integration is a separate phase.
+set(TRAV_INCLUDE "${CMAKE_SOURCE_DIR}/../include")
+add_executable(test_global_map
+    src/global_map/global_map.cpp
+    src/global_map/fusion_rules.cpp
+    src/global_map/test_global_map.cpp
+)
+target_include_directories(test_global_map PRIVATE include ${TRAV_INCLUDE})
+target_compile_options(test_global_map PRIVATE -Wall -Wextra)
