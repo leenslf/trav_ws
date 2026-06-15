@@ -6,6 +6,7 @@
 #include "comm_receiver.h"
 #include "polar_grid_widget.h"
 #include "jpeg_viewer_widget.h"
+#include "global_map_module.h"
 
 int main(int argc, char *argv[])
 {
@@ -27,11 +28,15 @@ int main(int argc, char *argv[])
     splitter->setStretchFactor(1, 1);
     window.setCentralWidget(splitter);
 
+    auto *global_map_module = new GlobalMapModule(&window);
+
     auto *receiver = new CommReceiver(&window);
     QObject::connect(receiver, &CommReceiver::frameReceived,
                      polar_grid_widget, &PolarGridWidget::updateFrame);
     QObject::connect(receiver, &CommReceiver::frameReceived,
                      jpeg_viewer_widget, &JpegViewerWidget::updateFrame);
+    QObject::connect(receiver, &CommReceiver::frameReceived,
+                     global_map_module, &GlobalMapModule::onFrameReceived);
     QObject::connect(receiver, &CommReceiver::imageReceived,
                      jpeg_viewer_widget, &JpegViewerWidget::updateImage);
 

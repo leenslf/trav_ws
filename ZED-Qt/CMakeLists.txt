@@ -24,6 +24,7 @@ add_executable(zed_qt
 target_include_directories(zed_qt PRIVATE
     include
     ${LIB_ROOT}/include
+    "${CMAKE_SOURCE_DIR}/../include"   # for traversability/frame_result.hpp (TrackingState)
 )
 
 target_link_libraries(zed_qt
@@ -43,6 +44,16 @@ target_compile_options(zed_qt PRIVATE -Wall -Wextra)
 set_source_files_properties(
     src/comm_receiver.cpp
     PROPERTIES COMPILE_FLAGS "-fpermissive"
+)
+
+# --- global_map: Phase 3 integration into zed_qt ---
+# include/global_map_module.h is listed explicitly so AUTOMOC processes Q_OBJECT.
+target_sources(zed_qt PRIVATE
+    src/global_map/local_to_world.cpp
+    src/global_map/global_map.cpp
+    src/global_map/fusion_rules.cpp
+    src/global_map_module.cpp
+    include/global_map_module.h
 )
 
 # --- global_map: local→world geometry module and its unit test ---
@@ -65,3 +76,16 @@ add_executable(test_global_map
 )
 target_include_directories(test_global_map PRIVATE include ${TRAV_INCLUDE})
 target_compile_options(test_global_map PRIVATE -Wall -Wextra)
+
+# --- global_map: Phase 3 smoke test (requires Qt for QObject / QVector) ---
+add_executable(test_global_map_module
+    src/global_map/local_to_world.cpp
+    src/global_map/global_map.cpp
+    src/global_map/fusion_rules.cpp
+    src/global_map_module.cpp
+    include/global_map_module.h   # listed explicitly so AUTOMOC processes Q_OBJECT
+    src/global_map/test_global_map_module.cpp
+)
+target_include_directories(test_global_map_module PRIVATE include ${TRAV_INCLUDE})
+target_link_libraries(test_global_map_module Qt5::Widgets)
+target_compile_options(test_global_map_module PRIVATE -Wall -Wextra)
