@@ -44,3 +44,12 @@ set_source_files_properties(
     src/comm_receiver.cpp
     PROPERTIES COMPILE_FLAGS "-fpermissive"
 )
+
+# --- global_map: local→world geometry module and its unit test ---
+# Not yet linked into zed_qt; integration is a separate phase.
+add_executable(test_local_to_world
+    src/global_map/local_to_world.cpp
+    src/global_map/test_local_to_world.cpp
+)
+target_include_directories(test_local_to_world PRIVATE include)
+target_compile_options(test_local_to_world PRIVATE -Wall -Wextra)
