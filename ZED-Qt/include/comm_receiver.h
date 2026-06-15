@@ -7,15 +7,28 @@
 #include <thread>
 #include "frame_data.h"
 
-static constexpr int POSE_MAILBOX_ID = 202;
+// Wire format for mailbox 200. Fixed-size POD; received via getStruct.
+// MUST stay byte-identical with the copy in include/traversability/consumers/comm_sender.hpp.
+struct FrameBundle {
+    static const int MAX_R = 20;   // maximum r_bins supported
+    static const int MAX_T = 20;   // maximum theta_bins supported
 
-struct PoseMsg {
-    float   tx, ty, tz;
-    float   qx, qy, qz, qw;
-    uint8_t state;
+    uint64_t timestamp_ns;                  // frame capture time
+    float    tx, ty, tz;                    // camera translation (metres)
+    float    qx, qy, qz, qw;               // camera orientation quaternion
+    uint8_t  tracking_state;               // ZED TrackingState cast to uint8_t
+    // 3 bytes implicit padding before int32_t
+    int32_t  r_bins;                        // actual r dimension this run (≤ MAX_R)
+    int32_t  theta_bins;                    // actual theta dimension this run (≤ MAX_T)
+    uint8_t  cells[MAX_R][MAX_T];          // quantized trav grid: 0=free 1=obstacle 2=unknown
+                                            // only [0:r_bins, 0:theta_bins] is valid
 };
+static_assert(sizeof(FrameBundle) == 448, "FrameBundle size mismatch — check comm_sender.hpp copy");
 
-Q_DECLARE_METATYPE(PoseMsg)
+// mailbox 202 retired — pose is now bundled into FrameBundle on mailbox 200
+static constexpr int MAP_MAILBOX_ID       = 200;
+static constexpr int IMAGE_MAILBOX_ID     = 201;
+static constexpr int IMAGE_MAX_SIZE_BYTES = 32768;
 
 class CommManager;
 class Mailbox;
@@ -32,22 +45,16 @@ public:
 signals:
     void frameReceived(const FrameData& frame);
     void imageReceived(const QByteArray& jpeg);
-    void poseReceived(const PoseMsg& pose);
 
 private:
     void mapLoop();
     void imageLoop();
-    void poseLoop();
 
     CommManager*      mgr_{nullptr};
     Mailbox*          map_box_{nullptr};
     Mailbox*          image_box_{nullptr};
-    Mailbox*          pose_box_{nullptr};
     std::atomic<bool> running_{false};
     std::thread       map_thread_;
     std::thread       image_thread_;
-    std::thread       pose_thread_;
     uint32_t          map_seq_{0};
-    uint32_t          image_seq_{0};
-    uint32_t          pose_seq_{0};
 };

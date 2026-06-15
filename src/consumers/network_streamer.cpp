@@ -17,14 +17,11 @@ std::size_t serialized_size_bytes(const TraversabilityResult& result)
     const std::size_t grid_bytes = nr * nt * sizeof(float);
     return sizeof(PacketHeader)
         + grid_bytes
-        + grid_bytes
-        + (nr + 1u) * sizeof(float)
-        + (nt + 1u) * sizeof(float);
+        + grid_bytes;
 }
 
 bool has_valid_layout(const TraversabilityResult& result)
 {
-    // Serialization expects two nr*nt grids (trav + height) plus edge arrays (r + theta) with nr/nt+1 bin boundaries.
     if (result.r_bins < 0 || result.theta_bins < 0) {
         return false;
     }
@@ -32,9 +29,7 @@ bool has_valid_layout(const TraversabilityResult& result)
     const std::size_t nr = static_cast<std::size_t>(result.r_bins);
     const std::size_t nt = static_cast<std::size_t>(result.theta_bins);
     return result.trav_grid.size() == nr * nt
-        && result.height_map.size() == nr * nt
-        && result.r_edges.size() == nr + 1u
-        && result.theta_edges.size() == nt + 1u;
+        && result.height_map.size() == nr * nt;
 }
 
 std::size_t serialize(unsigned char* dst,
@@ -45,8 +40,6 @@ std::size_t serialize(unsigned char* dst,
     const std::size_t nr = static_cast<std::size_t>(result.r_bins);
     const std::size_t nt = static_cast<std::size_t>(result.theta_bins);
     const std::size_t grid_bytes = nr * nt * sizeof(float);
-    const std::size_t r_edges_bytes = (nr + 1u) * sizeof(float);
-    const std::size_t theta_edges_bytes = (nt + 1u) * sizeof(float);
 
     PacketHeader header{};
     header.magic = NetworkStreamer::kPacketMagic;
@@ -65,16 +58,6 @@ std::size_t serialize(unsigned char* dst,
 
         std::memcpy(write_ptr, result.height_map.data(), grid_bytes);
         write_ptr += grid_bytes;
-    }
-
-    if (r_edges_bytes != 0u) {
-        std::memcpy(write_ptr, result.r_edges.data(), r_edges_bytes);
-        write_ptr += r_edges_bytes;
-    }
-
-    if (theta_edges_bytes != 0u) {
-        std::memcpy(write_ptr, result.theta_edges.data(), theta_edges_bytes);
-        write_ptr += theta_edges_bytes;
     }
 
     return static_cast<std::size_t>(write_ptr - dst);

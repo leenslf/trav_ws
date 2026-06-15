@@ -15,10 +15,10 @@ void JpegViewerWidget::updateImage(const QByteArray& bytes)
     update();
 }
 
-void JpegViewerWidget::updatePose(const PoseMsg& pose)
+void JpegViewerWidget::updateFrame(const FrameData& frame)
 {
-    m_pose = pose;
-    m_hasPose = true;
+    m_frame = frame;
+    m_hasFrame = true;
     update();
 }
 
@@ -37,7 +37,7 @@ void JpegViewerWidget::paintEvent(QPaintEvent*)
         p.drawImage(offset, scaled);
     }
 
-    if (!m_hasPose)
+    if (!m_hasFrame)
         return;
 
     static const struct { const char* name; QColor color; } kStates[] = {
@@ -50,9 +50,9 @@ void JpegViewerWidget::paintEvent(QPaintEvent*)
     };
     const char* stateName = "UNKNOWN";
     QColor stateColor = Qt::red;
-    if (m_pose.state < sizeof(kStates) / sizeof(kStates[0])) {
-        stateName = kStates[m_pose.state].name;
-        stateColor = kStates[m_pose.state].color;
+    if (m_frame.tracking_state < sizeof(kStates) / sizeof(kStates[0])) {
+        stateName  = kStates[m_frame.tracking_state].name;
+        stateColor = kStates[m_frame.tracking_state].color;
     }
 
     p.setFont(QFont(p.font().family(), 12));
@@ -61,14 +61,14 @@ void JpegViewerWidget::paintEvent(QPaintEvent*)
 
     const QString stateLine = QStringLiteral("State: %1").arg(QLatin1String(stateName));
     const QString transLine = QStringLiteral("tx: %1  ty: %2  tz: %3")
-        .arg(double(m_pose.tx), 0, 'f', 2)
-        .arg(double(m_pose.ty), 0, 'f', 2)
-        .arg(double(m_pose.tz), 0, 'f', 2);
+        .arg(double(m_frame.tx), 0, 'f', 2)
+        .arg(double(m_frame.ty), 0, 'f', 2)
+        .arg(double(m_frame.tz), 0, 'f', 2);
     const QString quatLine = QStringLiteral("qx: %1  qy: %2  qz: %3  qw: %4")
-        .arg(double(m_pose.qx), 0, 'f', 3)
-        .arg(double(m_pose.qy), 0, 'f', 3)
-        .arg(double(m_pose.qz), 0, 'f', 3)
-        .arg(double(m_pose.qw), 0, 'f', 3);
+        .arg(double(m_frame.qx), 0, 'f', 3)
+        .arg(double(m_frame.qy), 0, 'f', 3)
+        .arg(double(m_frame.qz), 0, 'f', 3)
+        .arg(double(m_frame.qw), 0, 'f', 3);
 
     auto drawHudLine = [&](int row, const QString& text, const QColor& color) {
         const int y = 8 + row * lineH;

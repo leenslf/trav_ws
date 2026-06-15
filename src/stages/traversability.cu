@@ -387,14 +387,6 @@ void TraversabilityStage::init(const PipelineConfig& cfg, FrameData& frame) {
     frame.result.r_bins     = r_bins_;
     frame.result.theta_bins = theta_bins_;
 
-    frame.result.r_edges.resize(static_cast<size_t>(r_bins_ + 1));
-    for (int k = 0; k <= r_bins_; ++k)
-        frame.result.r_edges[static_cast<size_t>(k)] = r_min_ + static_cast<float>(k) * dr_;
-
-    frame.result.theta_edges.resize(static_cast<size_t>(theta_bins_ + 1));
-    for (int k = 0; k <= theta_bins_; ++k)
-        frame.result.theta_edges[static_cast<size_t>(k)] = theta_min_ + static_cast<float>(k) * dtheta_;
-
     // Pre-allocate output vectors (resized once; overwritten each frame).
     frame.result.trav_grid.resize(static_cast<size_t>(cells));
     frame.result.height_map.resize(static_cast<size_t>(cells));

@@ -16,17 +16,13 @@ CommMapSender::CommMapSender(const std::string& remote_ip, int port)
     }
     const std::string dest_spec = "net: machine=" + remote_ip + ";";
     mgr_->openRemote(dest_spec.c_str());
-    mailer_ = mgr_->createMailer(dest_spec.c_str(), sizeof(TravMap), TRAVMAP_MAILBOX_ID);
+    mailer_ = mgr_->createMailer(dest_spec.c_str(), sizeof(FrameBundle), TRAVMAP_MAILBOX_ID);
     if (!mailer_) {
-        fprintf(stderr, "CommMapSender: could not create travmap mailer to %s\n", remote_ip.c_str());
+        fprintf(stderr, "CommMapSender: could not create bundle mailer to %s\n", remote_ip.c_str());
     }
     image_mailer_ = mgr_->createMailer(dest_spec.c_str(), IMAGE_MAX_SIZE_BYTES, IMAGE_MAILBOX_ID);
     if (!image_mailer_) {
         fprintf(stderr, "CommMapSender: could not create image mailer to %s\n", remote_ip.c_str());
-    }
-    pose_mailer_ = mgr_->createMailer(dest_spec.c_str(), sizeof(PoseMsg), POSE_MAILBOX_ID);
-    if (!pose_mailer_) {
-        fprintf(stderr, "CommMapSender: could not create pose mailer to %s\n", remote_ip.c_str());
     }
 }
 
@@ -34,42 +30,51 @@ CommMapSender::~CommMapSender()
 {
     if (mailer_)       mgr_->destroyMailer(mailer_);
     if (image_mailer_) mgr_->destroyMailer(image_mailer_);
-    if (pose_mailer_)  mgr_->destroyMailer(pose_mailer_);
     delete mgr_;
 }
 
-void CommMapSender::consume(const FrameResult& frame, uint64_t /*timestamp_ns*/)
+void CommMapSender::consume(const FrameResult& frame, uint64_t timestamp_ns)
 {
     if (!mailer_) return;
 
     const TraversabilityResult& result = frame.traversability;
 
-    if (result.r_bins != TravMap::HEIGHT || result.theta_bins != TravMap::WIDTH) {
-        fprintf(stderr, "CommMapSender: expected %dx%d grid, got %dx%d\n",
-                TravMap::HEIGHT, TravMap::WIDTH, result.r_bins, result.theta_bins);
-        return;
+    if (dims_state_ == 0) {
+        if (result.r_bins <= FrameBundle::MAX_R && result.theta_bins <= FrameBundle::MAX_T) {
+            dims_state_ = 1;
+        } else {
+            dims_state_ = -1;
+            fprintf(stderr, "CommMapSender: grid %dx%d exceeds MAX_R=%d x MAX_T=%d — refusing to send\n",
+                    result.r_bins, result.theta_bins, FrameBundle::MAX_R, FrameBundle::MAX_T);
+        }
     }
+    if (dims_state_ < 0) return;
 
-    TravMap map{};
-    for (int r = 0; r < TravMap::HEIGHT; ++r)
-        for (int c = 0; c < TravMap::WIDTH; ++c) {
+    FrameBundle bundle{};
+    bundle.timestamp_ns    = timestamp_ns;
+    bundle.tx              = frame.camera_pose.tx;
+    bundle.ty              = frame.camera_pose.ty;
+    bundle.tz              = frame.camera_pose.tz;
+    bundle.qx              = frame.camera_pose.qx;
+    bundle.qy              = frame.camera_pose.qy;
+    bundle.qz              = frame.camera_pose.qz;
+    bundle.qw              = frame.camera_pose.qw;
+    bundle.tracking_state  = static_cast<uint8_t>(frame.tracking_state);
+    bundle.r_bins          = result.r_bins;
+    bundle.theta_bins      = result.theta_bins;
+
+    for (int r = 0; r < result.r_bins; ++r)
+        for (int c = 0; c < result.theta_bins; ++c) {
             const float v = result.trav_grid[r * result.theta_bins + c];
-            map.cells[r][c] = std::isnan(v) ? 2u : (v > 0.5f ? 1u : 0u);
+            bundle.cells[r][c] = std::isnan(v) ? 2u : (v > 0.5f ? 1u : 0u);
         }
 
     Message* msg = mailer_->createMsg();
-    if (msg->setStruct(&map)) {
+    if (msg->setStruct(&bundle)) {
         mailer_->sendMsg(msg);
     } else {
         mailer_->releaseMsg(msg);
-        fprintf(stderr, "CommMapSender: message buffer too small for TravMap\n");
-    }
-
-    if (pose_mailer_) {
-        PoseMsg pose_msg{frame.camera_pose, static_cast<uint8_t>(frame.tracking_state)};
-        auto* msg = pose_mailer_->createMsg();
-        msg->setStruct(&pose_msg);
-        pose_mailer_->sendMsg(msg);
+        fprintf(stderr, "CommMapSender: message buffer too small for FrameBundle\n");
     }
 
     if (image_mailer_ && frame.has_image && !frame.image.jpeg_bytes.empty()) {

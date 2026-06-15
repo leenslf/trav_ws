@@ -34,8 +34,8 @@ void DiskWriteConsumer::consume(const FrameResult& frame,
 
 cv::Mat DiskWriteConsumer::colorize(const TraversabilityResult& result)
 {
-    const int nr = static_cast<int>(result.r_edges.size()) - 1;
-    const int nt = static_cast<int>(result.theta_edges.size()) - 1;
+    const int nr = result.r_bins;
+    const int nt = result.theta_bins;
 
     cv::Mat img(nr, nt, CV_8UC3);
 

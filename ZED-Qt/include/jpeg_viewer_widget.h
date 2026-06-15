@@ -4,7 +4,7 @@
 #include <QImage>
 #include <QWidget>
 
-#include "comm_receiver.h"
+#include "frame_data.h"
 
 class JpegViewerWidget : public QWidget {
     Q_OBJECT
@@ -13,13 +13,13 @@ public:
 
 public slots:
     void updateImage(const QByteArray& bytes);
-    void updatePose(const PoseMsg& pose);
+    void updateFrame(const FrameData& frame);
 
 protected:
     void paintEvent(QPaintEvent*) override;
 
 private:
-    QImage  m_currentImage;
-    PoseMsg m_pose{};
-    bool    m_hasPose{false};
+    QImage    m_currentImage;
+    FrameData m_frame{};
+    bool      m_hasFrame{false};
 };

@@ -12,7 +12,6 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
 
     qRegisterMetaType<FrameData>("FrameData");
-    qRegisterMetaType<PoseMsg>("PoseMsg");
 
     QMainWindow window;
     window.setWindowTitle(QStringLiteral("ZED Polar Viewer"));
@@ -31,10 +30,10 @@ int main(int argc, char *argv[])
     auto *receiver = new CommReceiver(&window);
     QObject::connect(receiver, &CommReceiver::frameReceived,
                      polar_grid_widget, &PolarGridWidget::updateFrame);
+    QObject::connect(receiver, &CommReceiver::frameReceived,
+                     jpeg_viewer_widget, &JpegViewerWidget::updateFrame);
     QObject::connect(receiver, &CommReceiver::imageReceived,
                      jpeg_viewer_widget, &JpegViewerWidget::updateImage);
-    QObject::connect(receiver, &CommReceiver::poseReceived,
-                     jpeg_viewer_widget, &JpegViewerWidget::updatePose);
 
     window.show();
     return app.exec();
