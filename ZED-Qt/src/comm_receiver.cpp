@@ -9,7 +9,9 @@ CommReceiver::CommReceiver(QObject* parent)
     : QObject(parent)
 {
     mgr_ = new CommManager();
-    if (!mgr_->initPortal("net")) {
+    char portal_spec[64];
+    snprintf(portal_spec, sizeof(portal_spec), "net: int port=%d;", MAP_LOCAL_PORT);
+    if (!mgr_->initPortal(portal_spec)) {
         fprintf(stderr, "CommReceiver: could not initialize portal\n");
         return;
     }

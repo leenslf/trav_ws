@@ -30,6 +30,11 @@ static constexpr int MAP_MAILBOX_ID       = 200;
 static constexpr int IMAGE_MAILBOX_ID     = 201;
 static constexpr int IMAGE_MAX_SIZE_BYTES = 32768;
 
+// Local portal port. Not the libcomm default (5000) — that collides with
+// a local robot process's RHexAPI control port when both run on the same
+// machine. MUST stay in sync with TRAVMAP_REMOTE_PORT in comm_sender.hpp.
+static constexpr int MAP_LOCAL_PORT       = 6000;
+
 class CommManager;
 class Mailbox;
 

@@ -14,7 +14,8 @@ CommMapSender::CommMapSender(const std::string& remote_ip, int port)
         fprintf(stderr, "CommMapSender: could not initialize portal\n");
         return;
     }
-    const std::string dest_spec = "net: machine=" + remote_ip + ";";
+    const std::string dest_spec = "net: machine=" + remote_ip + "; port="
+        + std::to_string(TRAVMAP_REMOTE_PORT) + ";";
     mgr_->openRemote(dest_spec.c_str());
     mailer_ = mgr_->createMailer(dest_spec.c_str(), sizeof(FrameBundle), TRAVMAP_MAILBOX_ID);
     if (!mailer_) {

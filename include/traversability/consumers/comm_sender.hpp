@@ -13,6 +13,15 @@ constexpr int IMAGE_MAILBOX_ID     = 201;
 constexpr int IMAGE_MAX_SIZE_BYTES = 32768;  // 32 KB — conservative ceiling for 320x180 JPEG
 // mailbox 202 retired — pose is now bundled into FrameBundle on mailbox 200
 
+// Destination port on the OCU/console for the traversability feed.
+// Deliberately NOT the libcomm default (5000): on a machine running both
+// RobotGUI and a local TRHex robot process (e.g. the "dummy" hardware
+// target), the robot's own RHexAPI control channel already binds port
+// 5000, and SO_REUSEADDR lets a second bind steal delivery of new
+// datagrams there, silently breaking the robot control heartbeat.
+// MUST stay in sync with RobotGUI's LocalMapWidget portal port.
+constexpr int TRAVMAP_REMOTE_PORT  = 6000;
+
 // Wire format for mailbox 200. Fixed-size POD; sent via setStruct/getStruct.
 // MUST stay byte-identical with the copy in ZED-Qt/include/comm_receiver.h.
 struct FrameBundle {
