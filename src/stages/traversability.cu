@@ -16,8 +16,8 @@ namespace {
 // is the only path compiled/used in that case.
 // ==================================================================
 // #define HEIGHT_AGG_MAX
-#define HEIGHT_AGG_PERCENTILE
-// #define HEIGHT_AGG_MAD_REJECT_MAX
+// #define HEIGHT_AGG_PERCENTILE
+#define HEIGHT_AGG_MAD_REJECT_MAX
 
 #if defined(HEIGHT_AGG_PERCENTILE)
 constexpr float HEIGHT_AGG_PERCENTILE_VALUE = 0.90f;  // tunable, comment-adjacent
