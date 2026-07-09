@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt5 REQUIRED COMPONENTS Widgets)
+find_package(yaml-cpp REQUIRED)
 
 set(CMAKE_AUTOMOC ON)
 
@@ -19,16 +20,18 @@ add_executable(zed_qt
     include/polar_grid_widget.h
     include/jpeg_viewer_widget.h
     include/frame_data.h
+    "${CMAKE_SOURCE_DIR}/../src/config.cpp"   # shared PipelineConfig/config.yaml loader
 )
 
 target_include_directories(zed_qt PRIVATE
     include
     ${LIB_ROOT}/include
-    "${CMAKE_SOURCE_DIR}/../include"   # for traversability/frame_result.hpp (TrackingState)
+    "${CMAKE_SOURCE_DIR}/../include"   # for traversability/frame_result.hpp (TrackingState), traversability/config.hpp
 )
 
 target_link_libraries(zed_qt
     Qt5::Widgets
+    yaml-cpp
     ${LIB_ROOT}/libcomm.a
     ${LIB_ROOT}/libutils.a
     pthread

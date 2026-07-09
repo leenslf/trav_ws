@@ -7,13 +7,6 @@
 
 namespace {
 
-// Grid extent constants — must stay in sync with PolarGridWidget::Config defaults.
-// If those defaults ever change, update these too (or move them to a shared header).
-constexpr float kRMinM       =  0.3f;
-constexpr float kDrM         =  0.10f;   // polar_grid_size_r_m
-constexpr float kThetaMinDeg = -45.0f;
-constexpr float kDthetaDeg   =  10.0f;   // polar_grid_size_theta_deg
-
 // V1 global map: fixed 10 m × 10 m (±5 m around first fusable pose), non-growable.
 // Cells that fall outside the initial window are silently counted via
 // GlobalMap::out_of_bounds_count().  This is a known v1 limitation.
@@ -28,6 +21,11 @@ constexpr int   kMapCells = static_cast<int>(2.0f * kMapHalfExtent / kMapResM); 
 GlobalMapModule::GlobalMapModule(QObject* parent)
     : QObject(parent)
 {}
+
+void GlobalMapModule::setGridConfig(const GridConfig& cfg)
+{
+    grid_cfg_ = cfg;
+}
 
 bool GlobalMapModule::isInitialized() const
 {
@@ -70,8 +68,8 @@ void GlobalMapModule::onFrameReceived(const FrameData& frame)
         initialized_ = true;
     }
 
-    const auto r_edges     = make_r_edges(frame.nr, kRMinM, kDrM);
-    const auto theta_edges = make_theta_edges(frame.nt, kThetaMinDeg, kDthetaDeg);
+    const auto r_edges     = make_r_edges(frame.nr, grid_cfg_.r_min_m, grid_cfg_.dr_m);
+    const auto theta_edges = make_theta_edges(frame.nt, grid_cfg_.theta_min_deg, grid_cfg_.dtheta_deg);
 
     for (int i = 0; i < frame.nr; ++i) {
         for (int j = 0; j < frame.nt; ++j) {

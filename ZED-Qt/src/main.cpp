@@ -5,18 +5,27 @@
 #include <QVBoxLayout>
 #include <QWidget>
 
+#include <filesystem>
+
 #include "frame_data.h"
 #include "comm_receiver.h"
 #include "polar_grid_widget.h"
 #include "jpeg_viewer_widget.h"
 #include "global_map_module.h"
 #include "global_map_widget.h"
+#include "traversability/config.hpp"
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
 
     qRegisterMetaType<FrameData>("FrameData");
+
+    // zed_qt lives at <repo>/ZED-Qt/build/zed_qt; config.yaml lives at <repo>/config/config.yaml.
+    const std::string default_config =
+        (std::filesystem::canonical("/proc/self/exe")
+             .parent_path().parent_path().parent_path() / "config" / "config.yaml").string();
+    const auto cfg = PipelineConfig::load_from_file(argc > 1 ? argv[1] : default_config);
 
     QMainWindow window;
     window.setWindowTitle(QStringLiteral("ZED Polar Viewer"));
@@ -27,6 +36,31 @@ int main(int argc, char *argv[])
     auto *jpeg_viewer_widget = new JpegViewerWidget;
     auto *global_map_module  = new GlobalMapModule(&window);
     auto *global_map_widget  = new GlobalMapWidget(global_map_module);
+
+    // ── Config: drive both widgets from config.yaml's [traversability] block ──
+    {
+        const auto& t = cfg.traversability;
+
+        PolarGridWidget::Config grid_cfg;
+        grid_cfg.r_min_m                   = t.r_min_m;
+        grid_cfg.r_max_m                   = t.r_max_m;
+        grid_cfg.theta_min_deg             = t.theta_min_deg;
+        grid_cfg.theta_max_deg             = t.theta_max_deg;
+        grid_cfg.danger_threshold          = t.danger_threshold;
+        grid_cfg.scrit_deg                 = t.scrit_deg;
+        grid_cfg.rcrit_m                   = t.rcrit_m;
+        grid_cfg.hcrit_m                   = t.hcrit_m;
+        grid_cfg.polar_grid_size_r_m       = t.polar_grid_size_r_m;
+        grid_cfg.polar_grid_size_theta_deg = t.polar_grid_size_theta_deg;
+        polar_grid_widget->setConfig(grid_cfg);
+
+        GlobalMapModule::GridConfig map_grid_cfg;
+        map_grid_cfg.r_min_m       = t.r_min_m;
+        map_grid_cfg.dr_m          = t.polar_grid_size_r_m;
+        map_grid_cfg.theta_min_deg = t.theta_min_deg;
+        map_grid_cfg.dtheta_deg    = t.polar_grid_size_theta_deg;
+        global_map_module->setGridConfig(map_grid_cfg);
+    }
 
     // ── Layout ───────────────────────────────────────────────────────────────
     // Outer: horizontal splitter  [left (3) | JpegViewer (1)]

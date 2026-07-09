@@ -18,7 +18,7 @@ public:
         float rcrit_m                   = 0.10f;
         float hcrit_m                   = 0.20f;
         float polar_grid_size_r_m       = 0.10f;
-        float polar_grid_size_theta_deg = 5.0f;
+        float polar_grid_size_theta_deg = 1.0f;
     };
 
     explicit PolarGridWidget(QWidget* parent = nullptr);
