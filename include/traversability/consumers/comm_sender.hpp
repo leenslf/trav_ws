@@ -25,8 +25,8 @@ constexpr int TRAVMAP_REMOTE_PORT  = 6000;
 // Wire format for mailbox 200. Fixed-size POD; sent via setStruct/getStruct.
 // MUST stay byte-identical with the copy in ZED-Qt/include/comm_receiver.h.
 struct FrameBundle {
-    static const int MAX_R = 20;   // maximum r_bins supported
-    static const int MAX_T = 20;   // maximum theta_bins supported
+    static const int MAX_R = 20;    // maximum r_bins supported
+    static const int MAX_T = 128;   // maximum theta_bins supported (FOV/theta_deg=1.0 -> 90 bins, plus headroom)
 
     uint64_t timestamp_ns;                  // frame capture time
     float    tx, ty, tz;                    // camera translation (metres)
@@ -38,7 +38,7 @@ struct FrameBundle {
     uint8_t  cells[MAX_R][MAX_T];          // quantized trav grid: 0=free 1=obstacle 2=unknown
                                             // only [0:r_bins, 0:theta_bins] is valid
 };
-static_assert(sizeof(FrameBundle) == 448, "FrameBundle size mismatch — check ZED-Qt copy");
+static_assert(sizeof(FrameBundle) == 2608, "FrameBundle size mismatch — check ZED-Qt copy");
 
 class CommMapSender : public IResultConsumer {
 public:
