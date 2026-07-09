@@ -31,4 +31,13 @@ private:
     // Pinned host buffers for async D2H copy
     float* h_trav_grid_{nullptr};
     float* h_terrain_{nullptr};
+
+    // Height-aggregation alternative scratch (see HEIGHT_AGG_* selector in
+    // traversability.cu). Allocated only when a non-default aggregation
+    // method is selected; stay nullptr/unused when HEIGHT_AGG_MAX (the
+    // default) is active, so this is a no-op addition in the default build.
+    float* d_bin_points_{nullptr};      // [cells * kMaxPointsPerBin] gathered per-bin z values
+    int*   d_bin_counts_{nullptr};      // [cells] per-bin point counter
+    int*   d_overflow_count_{nullptr};  // [1] per-frame dropped-point counter (diagnostic)
+    int*   h_overflow_count_{nullptr};  // pinned host mirror of d_overflow_count_
 };

@@ -1,12 +1,39 @@
 #include "traversability/stages/traversability.hpp"
 
 #include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <limits>
 
 #include <cuda_runtime.h>
 
 namespace {
+
+// ==================================================================
+// Height aggregation method selector — uncomment exactly ONE.
+// Default (MAX) preserves original behavior exactly; the original
+// atomicMax scatter path (build_height_map_kernel) is untouched and
+// is the only path compiled/used in that case.
+// ==================================================================
+// #define HEIGHT_AGG_MAX
+#define HEIGHT_AGG_PERCENTILE
+// #define HEIGHT_AGG_MAD_REJECT_MAX
+
+#if defined(HEIGHT_AGG_PERCENTILE)
+constexpr float HEIGHT_AGG_PERCENTILE_VALUE = 0.90f;  // tunable, comment-adjacent
+#endif
+#if defined(HEIGHT_AGG_MAD_REJECT_MAX)
+constexpr float HEIGHT_AGG_MAD_K = 3.0f;              // tunable, comment-adjacent
+#endif
+
+#if !defined(HEIGHT_AGG_MAX)
+// Fixed per-bin capacity for the raw-z gather buffer used by the alternative
+// aggregation methods below. Points beyond this many per bin are dropped and
+// counted in the per-frame overflow counter (diagnostic only, does not
+// affect correctness of the retained points). Tunable — raise if bins
+// routinely receive more than this many points.
+constexpr int kMaxPointsPerBin = 64;
+#endif
 
 static constexpr float kPi    = 3.14159265358979323846f;
 static constexpr int   kHalf  = 2;                                    // 5×5 window half-width
@@ -33,6 +60,83 @@ __device__ __forceinline__ void atomicMaxFloat(float* addr, float val) {
         old = atomicCAS(addr_as_int, assumed, __float_as_int(val));
     } while (old != assumed);
 }
+
+#if !defined(HEIGHT_AGG_MAX)
+// ---------------------------------------------------------------------------
+// Device helpers for the alternative per-bin height aggregation methods.
+// n is small (<= kMaxPointsPerBin, default 64) so plain insertion sort is
+// used deliberately instead of a library sort / nth_element.
+// ---------------------------------------------------------------------------
+
+__device__ __forceinline__ void insertion_sort_dev(float* arr, int n) {
+    for (int i = 1; i < n; ++i) {
+        const float key = arr[i];
+        int j = i - 1;
+        while (j >= 0 && arr[j] > key) {
+            arr[j + 1] = arr[j];
+            --j;
+        }
+        arr[j + 1] = key;
+    }
+}
+
+// Median of sorted[0..n) — average of the two middle elements when n is even.
+__device__ __forceinline__ float median_of_sorted_dev(const float* sorted, int n) {
+    return (n % 2 == 1) ? sorted[n / 2]
+                         : 0.5f * (sorted[n / 2 - 1] + sorted[n / 2]);
+}
+
+// p-th percentile of arr_in[0..n) via linear interpolation on the sorted
+// values (matches the common "linear" convention, e.g. numpy default):
+//   idx   = p * (n - 1)
+//   lower = floor(idx), upper = ceil(idx), frac = idx - lower
+//   result = arr[lower] * (1 - frac) + arr[upper] * frac
+__device__ __forceinline__ float percentile_dev(const float* arr_in, int n, float p) {
+    float tmp[kMaxPointsPerBin];
+    for (int i = 0; i < n; ++i) tmp[i] = arr_in[i];
+    insertion_sort_dev(tmp, n);
+
+    if (n == 1) return tmp[0];
+
+    const float idx   = p * static_cast<float>(n - 1);
+    const int   lower = static_cast<int>(floorf(idx));
+    const int   upper = static_cast<int>(ceilf(idx));
+    const float frac  = idx - static_cast<float>(lower);
+    return tmp[lower] * (1.0f - frac) + tmp[upper] * frac;
+}
+
+// MAD-based outlier rejection, then max of the surviving points:
+//   median_z   = median(z values in cell)
+//   MAD        = median(|z_i - median_z|)
+//   robust_std = 1.4826 * MAD   (normal-consistency scale factor)
+//   keep z_i where |z_i - median_z| <= k * robust_std
+//   result = max(z) over survivors, or median_z if all points were
+//            rejected / robust_std == 0 (avoids a degenerate empty max)
+__device__ __forceinline__ float mad_reject_max_dev(const float* arr_in, int n, float k) {
+    float sorted[kMaxPointsPerBin];
+    for (int i = 0; i < n; ++i) sorted[i] = arr_in[i];
+    insertion_sort_dev(sorted, n);
+    const float median_z = median_of_sorted_dev(sorted, n);
+
+    float dev[kMaxPointsPerBin];
+    for (int i = 0; i < n; ++i) dev[i] = fabsf(arr_in[i] - median_z);
+    insertion_sort_dev(dev, n);
+    const float mad        = median_of_sorted_dev(dev, n);
+    const float robust_std = 1.4826f * mad;
+
+    if (robust_std == 0.0f) return median_z;
+
+    bool  any      = false;
+    float max_surv = 0.0f;
+    for (int i = 0; i < n; ++i) {
+        if (fabsf(arr_in[i] - median_z) <= k * robust_std) {
+            if (!any || arr_in[i] > max_surv) max_surv = arr_in[i];
+            any = true;
+        }
+    }
+    return any ? max_surv : median_z;
+}
+#endif // !defined(HEIGHT_AGG_MAX)
 
 // ---------------------------------------------------------------------------
 // Kernel 0 — initialise a float buffer to a constant value
@@ -74,6 +178,82 @@ __global__ void build_height_map_kernel(
 
     atomicMaxFloat(&d_height_map[r_bin * theta_bins + theta_bin], z);
 }
+
+#if !defined(HEIGHT_AGG_MAX)
+// ---------------------------------------------------------------------------
+// Kernel 1b — gather raw z values per bin (one thread per input point)
+//
+// Alternative to Kernel 1's atomicMax scatter: instead of reducing directly,
+// stash each point's z into a fixed-capacity per-bin buffer so Kernel 1c can
+// compute percentile / MAD-reject-max over the full set of per-bin values.
+// Same bin-index computation as build_height_map_kernel. Points beyond
+// kMaxPointsPerBin for a given bin are dropped and counted in d_overflow_count
+// (diagnostic only — does not affect correctness of the retained points).
+// ---------------------------------------------------------------------------
+__global__ void gather_bin_points_kernel(
+    const float3* __restrict__ d_points,
+    float*        __restrict__ d_bin_points,
+    int*          __restrict__ d_bin_counts,
+    int*          __restrict__ d_overflow_count,
+    int   N,
+    int   r_bins,
+    int   theta_bins,
+    float r_min,
+    float theta_min,
+    float inv_dr,
+    float inv_dtheta)
+{
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i >= N) return;
+
+    const float r     = d_points[i].x;
+    const float theta = d_points[i].y;
+    const float z     = d_points[i].z;
+
+    const int r_bin     = static_cast<int>(floorf((r     - r_min)     * inv_dr));
+    const int theta_bin = static_cast<int>(floorf((theta - theta_min) * inv_dtheta));
+
+    if (r_bin < 0 || r_bin >= r_bins || theta_bin < 0 || theta_bin >= theta_bins) return;
+
+    const int bin  = r_bin * theta_bins + theta_bin;
+    const int slot = atomicAdd(&d_bin_counts[bin], 1);
+    if (slot < kMaxPointsPerBin) {
+        d_bin_points[bin * kMaxPointsPerBin + slot] = z;
+    } else {
+        atomicAdd(d_overflow_count, 1);
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Kernel 1c — per-bin reduction (one thread per cell)
+//
+// Reduces the points gathered by Kernel 1b using whichever HEIGHT_AGG_*
+// method is selected, writing the result into d_height_map exactly where
+// Kernel 1 (atomicMax) would have written it. Bins with zero points are left
+// untouched (still holding the sentinel written by init_float_kernel).
+// ---------------------------------------------------------------------------
+__global__ void select_height_kernel(
+    const float* __restrict__ d_bin_points,
+    const int*   __restrict__ d_bin_counts,
+    float*       __restrict__ d_height_map,
+    int cells)
+{
+    const int bin = blockIdx.x * blockDim.x + threadIdx.x;
+    if (bin >= cells) return;
+
+    int n = d_bin_counts[bin];
+    if (n <= 0) return;
+    if (n > kMaxPointsPerBin) n = kMaxPointsPerBin;  // clamp; overflow already counted separately
+
+    const float* pts = &d_bin_points[bin * kMaxPointsPerBin];
+
+#if defined(HEIGHT_AGG_PERCENTILE)
+    d_height_map[bin] = percentile_dev(pts, n, HEIGHT_AGG_PERCENTILE_VALUE);
+#elif defined(HEIGHT_AGG_MAD_REJECT_MAX)
+    d_height_map[bin] = mad_reject_max_dev(pts, n, HEIGHT_AGG_MAD_K);
+#endif
+}
+#endif // !defined(HEIGHT_AGG_MAX)
 
 // ---------------------------------------------------------------------------
 // Kernel 2 — terrain fill and valid-cell mask (one thread per cell)
@@ -352,6 +532,12 @@ TraversabilityStage::~TraversabilityStage() {
     cudaFree(d_trav_grid_);
     cudaFreeHost(h_trav_grid_);
     cudaFreeHost(h_terrain_);
+#if !defined(HEIGHT_AGG_MAX)
+    cudaFree(d_bin_points_);
+    cudaFree(d_bin_counts_);
+    cudaFree(d_overflow_count_);
+    cudaFreeHost(h_overflow_count_);
+#endif
 }
 
 void TraversabilityStage::init(const PipelineConfig& cfg, FrameData& frame) {
@@ -409,6 +595,16 @@ void TraversabilityStage::init(const PipelineConfig& cfg, FrameData& frame) {
     // Pinned host buffers enable true async D2H copy.
     cudaMallocHost(&h_trav_grid_, fbytes);
     cudaMallocHost(&h_terrain_,   fbytes);
+
+#if !defined(HEIGHT_AGG_MAX)
+    // Alternative height-aggregation scratch, sized once here (never
+    // per-frame): capacity is fixed per bin, so total footprint is
+    // cells * kMaxPointsPerBin * sizeof(float) for the gather buffer.
+    cudaMalloc(&d_bin_points_, static_cast<size_t>(cells) * kMaxPointsPerBin * sizeof(float));
+    cudaMalloc(&d_bin_counts_, static_cast<size_t>(cells) * sizeof(int));
+    cudaMalloc(&d_overflow_count_, sizeof(int));
+    cudaMallocHost(&h_overflow_count_, sizeof(int));
+#endif
 }
 
 void TraversabilityStage::process(FrameData& frame, cudaStream_t stream) {
@@ -436,6 +632,7 @@ void TraversabilityStage::process(FrameData& frame, cudaStream_t stream) {
     cudaMemsetAsync(d_observed_mask_, 0, bbytes, stream);
 
     // Kernel 1: scatter polar points → height map.
+#if defined(HEIGHT_AGG_MAX)
     if (N > 0) {
         build_height_map_kernel<<<(N + kThreads1d - 1) / kThreads1d, kThreads1d, 0, stream>>>(
             frame.polar_points.ptr, d_height_map_, N,
@@ -443,6 +640,21 @@ void TraversabilityStage::process(FrameData& frame, cudaStream_t stream) {
             r_min_, theta_min_,
             1.0f / dr_, 1.0f / dtheta_);
     }
+#else
+    // Alternative aggregation: gather raw per-bin z values (Kernel 1b), then
+    // reduce each bin with the selected HEIGHT_AGG_* method (Kernel 1c).
+    cudaMemsetAsync(d_bin_counts_, 0, static_cast<size_t>(cells) * sizeof(int), stream);
+    cudaMemsetAsync(d_overflow_count_, 0, sizeof(int), stream);
+    if (N > 0) {
+        gather_bin_points_kernel<<<(N + kThreads1d - 1) / kThreads1d, kThreads1d, 0, stream>>>(
+            frame.polar_points.ptr, d_bin_points_, d_bin_counts_, d_overflow_count_, N,
+            r_bins_, theta_bins_,
+            r_min_, theta_min_,
+            1.0f / dr_, 1.0f / dtheta_);
+    }
+    select_height_kernel<<<(cells + kThreads1d - 1) / kThreads1d, kThreads1d, 0, stream>>>(
+        d_bin_points_, d_bin_counts_, d_height_map_, cells);
+#endif
 
     // Kernel 2: fill terrain and valid-cell mask.
     fill_terrain_kernel<<<grid2d, block2d, 0, stream>>>(
@@ -491,10 +703,23 @@ void TraversabilityStage::process(FrameData& frame, cudaStream_t stream) {
     // copies begin only after all preceding kernels complete.
     cudaMemcpyAsync(h_trav_grid_, d_trav_grid_, fbytes, cudaMemcpyDeviceToHost, stream);
     cudaMemcpyAsync(h_terrain_,   d_terrain_,   fbytes, cudaMemcpyDeviceToHost, stream);
+#if !defined(HEIGHT_AGG_MAX)
+    cudaMemcpyAsync(h_overflow_count_, d_overflow_count_, sizeof(int), cudaMemcpyDeviceToHost, stream);
+#endif
 
     // Sync stream to ensure copies are complete before writing frame.result.
     cudaStreamSynchronize(stream);
 
     std::memcpy(frame.result.trav_grid.data(),  h_trav_grid_, fbytes);
     std::memcpy(frame.result.height_map.data(), h_terrain_,   fbytes);
+
+#if !defined(HEIGHT_AGG_MAX)
+    // Diagnostic only — does not affect correctness of retained points.
+    if (*h_overflow_count_ > 0) {
+        std::fprintf(stderr,
+            "[Traversability] height-agg gather overflow: %d point(s) dropped "
+            "(bin capacity = %d)\n",
+            *h_overflow_count_, kMaxPointsPerBin);
+    }
+#endif
 }
