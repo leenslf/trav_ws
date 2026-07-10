@@ -31,4 +31,11 @@ private:
     // Pinned host buffers for async D2H copy
     float* h_trav_grid_{nullptr};
     float* h_terrain_{nullptr};
+
+    // Adaptive per-ring theta-bin merging (see adaptive_theta_merge in
+    // TraversabilityConfig). Allocated only when the flag is enabled; stay
+    // nullptr/unused otherwise, so this is a no-op addition when off.
+    bool   adaptive_theta_merge_{false};
+    int*   d_theta_merge_k_{nullptr};    // [r_bins] per-ring merge factor k(i), baked once at init
+    float* d_theta_group_map_{nullptr};  // [cells] compact per-(ring,group) max-Z scratch
 };

@@ -4,11 +4,11 @@ zed:
   # pipeline assumes Z is up, X is forward, Y is left
   coordinate_system: RIGHT_HANDED_Z_UP_X_FWD
   # Options: PERFORMANCE, QUALITY, ULTRA, NEURAL
-  depth_mode: PERFORMANCE
+  depth_mode: NEURAL_LIGHT
   # most optimal resolution for SLAM is HD720
   resolution: HD720
   # path to the svo file to replay. If empty, the real ZED camera is used.
-  svo_path: "/home/leen/Documents/ZED/TRANSLATE12M.svo2"
+  svo_path: "/home/teknolus/devel/bags/evencloserbroom.svo2"
 
   # When svo_real_time_mode = true, the ZED SDK throttles SVO playback to match the original recording FPS. 
   svo_real_time: true 
@@ -34,7 +34,7 @@ voxel_filter:
   min_points_per_voxel: 3     # Minimum occupancy to keep a voxel; voxels with fewer points are dropped as noise
 
 polarize:
-  z_threshold: 0.45           # Max absolute Z height to keep, in metres (points with |z| >= this are discarded).
+  z_threshold: 0.45           # Max absolute Z height to keep, in metres (points with |z| >= this are discarded). This relates to the height on which the camera is mounted. VERY IMPORTANT.
   min_range: 0.1               # Min horizontal range to keep, in metres (points with r <= this are discarded, removes robot-body / sensor blind-spot returns)
 
 traversability:
@@ -47,7 +47,8 @@ traversability:
   rcrit_m: 0.10                 # Critical roughness, in metres (3x3 neighbourhood std-dev of height) — above this clips to infinity
   hcrit_m: 0.20                 # Critical step height, in metres — used both in the step-height (τ) qualification test and as the h_crit normalizer in the danger score blend
   polar_grid_size_r_m: 0.10     # Radial bin size of the height-map grid, in metres
-  polar_grid_size_theta_deg: 1.0  # Angular bin size of the height-map grid, in degrees.
+  polar_grid_size_theta_deg: 5.0  # Angular bin size of the height-map grid, in degrees.
+  adaptive_theta_merge: true   # When true, near-sensor rings whose theta bins are narrower than voxel_filter's spatial resolution merge with angular neighbors before max-Z aggregation, then broadcast back (fixes near-range sparsity; output grid shape is unchanged)
 
 # comm sends processed frames across network via CommManager.
 # disk writes processed csv frames to disk, useful for analysis and debugging.
@@ -59,5 +60,5 @@ comm_sender:
 
 
 disk_writer:
-  output_dir: "../output/theta_1.0"
+  output_dir: "../output-2/HEIGHT_AGG_MAX"
   write_images: false

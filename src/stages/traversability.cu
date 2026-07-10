@@ -1,8 +1,11 @@
 #include "traversability/stages/traversability.hpp"
 
+#include <algorithm>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <vector>
 
 #include <cuda_runtime.h>
 
@@ -48,6 +51,11 @@ __global__ void init_float_kernel(float* buf, int n, float val) {
 // Input: float3 AoS where .x=r, .y=theta, .z=z.
 // Output grid: row-major (r_bins × theta_bins), index = r_bin * theta_bins + theta_bin.
 // Sentinel −FLT_MAX marks cells that received no points.
+//
+// Adaptive theta-merge (d_merge_k != nullptr): points are reduced into a
+// compact per-(ring,group) column instead of their raw theta_bin, so a
+// whole group of narrow bins shares one atomicMax reduction. Kernel 1b then
+// broadcasts the merged result back out to full resolution.
 // ---------------------------------------------------------------------------
 __global__ void build_height_map_kernel(
     const float3* __restrict__ d_points,
@@ -58,7 +66,8 @@ __global__ void build_height_map_kernel(
     float r_min,
     float theta_min,
     float inv_dr,
-    float inv_dtheta)
+    float inv_dtheta,
+    const int* __restrict__ d_merge_k)  // [r_bins] or nullptr (adaptive_theta_merge off)
 {
     const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= N) return;
@@ -72,7 +81,34 @@ __global__ void build_height_map_kernel(
 
     if (r_bin < 0 || r_bin >= r_bins || theta_bin < 0 || theta_bin >= theta_bins) return;
 
-    atomicMaxFloat(&d_height_map[r_bin * theta_bins + theta_bin], z);
+    const int col = d_merge_k ? theta_bin / d_merge_k[r_bin] : theta_bin;
+
+    atomicMaxFloat(&d_height_map[r_bin * theta_bins + col], z);
+}
+
+// ---------------------------------------------------------------------------
+// Kernel 1b — adaptive theta-merge broadcast (one thread per full-res cell)
+//
+// Only launched when adaptive_theta_merge is enabled. Kernel 1 has already
+// written compact per-(ring,group) max-Z results into d_group_map at column
+// g = theta_bin / d_merge_k[r_bin], for g in [0, ceil(theta_bins / k)). This
+// pass reads that compact buffer only (never writes it) and writes the
+// full-resolution d_height_map only — disjoint source/destination buffers,
+// so there is no read/write hazard even though multiple raw columns share
+// the same source group column.
+// ---------------------------------------------------------------------------
+__global__ void broadcast_theta_merge_kernel(
+    const float* __restrict__ d_group_map,
+    float*       __restrict__ d_height_map,
+    const int*   __restrict__ d_merge_k,
+    int r_bins, int theta_bins)
+{
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;  // r_bin
+    const int j = blockIdx.y * blockDim.y + threadIdx.y;  // theta_bin
+    if (i >= r_bins || j >= theta_bins) return;
+
+    const int g = j / d_merge_k[i];
+    d_height_map[i * theta_bins + j] = d_group_map[i * theta_bins + g];
 }
 
 // ---------------------------------------------------------------------------
@@ -352,6 +388,8 @@ TraversabilityStage::~TraversabilityStage() {
     cudaFree(d_trav_grid_);
     cudaFreeHost(h_trav_grid_);
     cudaFreeHost(h_terrain_);
+    cudaFree(d_theta_merge_k_);
+    cudaFree(d_theta_group_map_);
 }
 
 void TraversabilityStage::init(const PipelineConfig& cfg, FrameData& frame) {
@@ -409,6 +447,35 @@ void TraversabilityStage::init(const PipelineConfig& cfg, FrameData& frame) {
     // Pinned host buffers enable true async D2H copy.
     cudaMallocHost(&h_trav_grid_, fbytes);
     cudaMallocHost(&h_terrain_,   fbytes);
+
+    // Adaptive per-ring theta-bin merging: k(i) depends only on static
+    // config (r_edges, voxel_size, theta_configured_rad), so it is computed
+    // once here and baked into a small device lookup table -- never
+    // recomputed or reallocated per frame.
+    adaptive_theta_merge_ = tc.adaptive_theta_merge;
+    if (adaptive_theta_merge_) {
+        // Horizontal spatial resolution of the upstream voxel_filter stage;
+        // r/theta are derived from x,y (see PolarizeStage), so the coarser
+        // of the two horizontal voxel dimensions bounds the achievable
+        // angular resolution of the point cloud.
+        const float voxel_size = std::max(cfg.voxel_filter.voxel_size_x,
+                                           cfg.voxel_filter.voxel_size_y);
+
+        std::vector<int> h_merge_k(static_cast<size_t>(r_bins_));
+        for (int i = 0; i < r_bins_; ++i) {
+            const float r_center      = r_min_ + (static_cast<float>(i) + 0.5f) * dr_;
+            const float theta_min_rad = voxel_size / r_center;
+            int k = static_cast<int>(std::ceil(theta_min_rad / dtheta_));
+            k = std::max(1, k);
+            k = std::min(k, theta_bins_);
+            h_merge_k[static_cast<size_t>(i)] = k;
+        }
+
+        cudaMalloc(&d_theta_merge_k_, static_cast<size_t>(r_bins_) * sizeof(int));
+        cudaMemcpy(d_theta_merge_k_, h_merge_k.data(),
+                   static_cast<size_t>(r_bins_) * sizeof(int), cudaMemcpyHostToDevice);
+        cudaMalloc(&d_theta_group_map_, fbytes);
+    }
 }
 
 void TraversabilityStage::process(FrameData& frame, cudaStream_t stream) {
@@ -435,13 +502,34 @@ void TraversabilityStage::process(FrameData& frame, cudaStream_t stream) {
         d_height_map_, cells, sentinel);
     cudaMemsetAsync(d_observed_mask_, 0, bbytes, stream);
 
+    // Adaptive theta-merge: Kernel 1's reduction writes into a compact
+    // per-(ring,group) scratch buffer instead of d_height_map_ directly;
+    // Kernel 1b then broadcasts it out to full resolution. When the flag is
+    // off, d_step1_target == d_height_map_ and no extra kernel runs, so
+    // behavior is identical to before this feature existed.
+    float* const d_step1_target = adaptive_theta_merge_ ? d_theta_group_map_ : d_height_map_;
+    const int* const d_merge_k  = adaptive_theta_merge_ ? d_theta_merge_k_   : nullptr;
+    if (adaptive_theta_merge_) {
+        init_float_kernel<<<(cells + kThreads1d - 1) / kThreads1d, kThreads1d, 0, stream>>>(
+            d_theta_group_map_, cells, sentinel);
+    }
+
     // Kernel 1: scatter polar points → height map.
     if (N > 0) {
         build_height_map_kernel<<<(N + kThreads1d - 1) / kThreads1d, kThreads1d, 0, stream>>>(
-            frame.polar_points.ptr, d_height_map_, N,
+            frame.polar_points.ptr, d_step1_target, N,
             r_bins_, theta_bins_,
             r_min_, theta_min_,
-            1.0f / dr_, 1.0f / dtheta_);
+            1.0f / dr_, 1.0f / dtheta_,
+            d_merge_k);
+    }
+
+    // Kernel 1b: broadcast merged-group max-Z back to every raw theta bin it
+    // covers, restoring full (r_bins, theta_bins) resolution for Steps 2-8.
+    if (adaptive_theta_merge_) {
+        broadcast_theta_merge_kernel<<<grid2d, block2d, 0, stream>>>(
+            d_theta_group_map_, d_height_map_, d_theta_merge_k_,
+            r_bins_, theta_bins_);
     }
 
     // Kernel 2: fill terrain and valid-cell mask.

@@ -70,6 +70,7 @@ PipelineConfig PipelineConfig::load_from_file(const std::string& path) {
         if (n["hcrit_m"])                    cfg.traversability.hcrit_m                    = n["hcrit_m"].as<float>();
         if (n["polar_grid_size_r_m"])        cfg.traversability.polar_grid_size_r_m        = n["polar_grid_size_r_m"].as<float>();
         if (n["polar_grid_size_theta_deg"])  cfg.traversability.polar_grid_size_theta_deg  = n["polar_grid_size_theta_deg"].as<float>();
+        if (n["adaptive_theta_merge"])       cfg.traversability.adaptive_theta_merge       = n["adaptive_theta_merge"].as<bool>();
     }
     if (auto n = root["image_encode"]) {
         if (n["scale"])        cfg.image_encode.scale        = n["scale"].as<float>();

@@ -79,6 +79,14 @@ struct TraversabilityConfig {
     float hcrit_m{0.20f};
     float polar_grid_size_r_m{0.10f};
     float polar_grid_size_theta_deg{5.0f};
+
+    /// When true, radial rings whose theta bins are narrower than the point
+    /// cloud's spatial resolution (voxel_filter's voxel size) merge adjacent
+    /// theta bins before max-Z aggregation, then broadcast the merged value
+    /// back to every raw bin -- fixes near-range sparsity without changing
+    /// the (r_bins, theta_bins) output shape. Default off preserves exact
+    /// existing behavior.
+    bool adaptive_theta_merge{false};
 };
 
 struct ImageEncodeConfig {
