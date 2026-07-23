@@ -78,7 +78,20 @@ struct TraversabilityConfig {
     float rcrit_m{0.10f};
     float hcrit_m{0.20f};
     float polar_grid_size_r_m{0.10f};
+
+    // No longer read by the traversability stage itself (superseded by
+    // theta_target_arc_width_m / zone-based angular binning). Retained only
+    // because ZED-Qt's polar_grid_widget still uses it to draw a uniform
+    // grid overlay — that widget doesn't yet understand zoned grids.
     float polar_grid_size_theta_deg{5.0f};
+
+    // Target physical arc width (metres) for angular bins, used to derive
+    // per-radial-zone angular bin counts (see compute_polar_zones in
+    // traversability/stages/traversability.hpp). Setting this equal to
+    // polar_grid_size_r_m tends to produce close to one zone per radial bin
+    // (no meaningful grouping); a few times polar_grid_size_r_m (3-5x) keeps
+    // the zone count small.
+    float theta_target_arc_width_m{0.3f};
 };
 
 struct ImageEncodeConfig {

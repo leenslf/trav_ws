@@ -64,11 +64,21 @@ void CommMapSender::consume(const FrameResult& frame, uint64_t timestamp_ns)
     bundle.r_bins          = result.r_bins;
     bundle.theta_bins      = result.theta_bins;
 
-    for (int r = 0; r < result.r_bins; ++r)
-        for (int c = 0; c < result.theta_bins; ++c) {
-            const float v = result.trav_grid[r * result.theta_bins + c];
+    // trav_grid is a ragged buffer (see PolarZone in traversability/stages/
+    // traversability.hpp): row r has row_theta_bins[r] valid columns starting
+    // at row_offset[r], not a uniform theta_bins stride. Encode each row at
+    // its own width; unused columns in FrameBundle::cells beyond
+    // row_theta_bins[r] are left at their zero-init value and ignored by
+    // the receiver.
+    for (int r = 0; r < result.r_bins; ++r) {
+        const int nt     = result.row_theta_bins[r];
+        const int offset = result.row_offset[r];
+        bundle.row_theta_bins[r] = nt;
+        for (int c = 0; c < nt; ++c) {
+            const float v = result.trav_grid[offset + c];
             bundle.cells[r][c] = std::isnan(v) ? 2u : (v > 0.5f ? 1u : 0u);
         }
+    }
 
     Message* msg = mailer_->createMsg();
     if (msg->setStruct(&bundle)) {

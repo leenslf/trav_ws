@@ -18,6 +18,21 @@ void DiskWriteConsumer::consume(const FrameResult& frame,
 {
     const TraversabilityResult& result = frame.traversability;
 
+    // colorize()/write_traversability_grid() below assume a uniform
+    // r_bins x theta_bins grid (index = r*theta_bins+t), but zoned angular
+    // binning (see PolarZone in traversability/stages/traversability.hpp)
+    // makes trav_grid a RAGGED buffer whenever a row is narrower than
+    // theta_bins — indexing it as uniform would read past the end of
+    // trav_grid (UB). Guard against that mismatch instead of writing
+    // corrupt output.
+    const size_t expected_cells = static_cast<size_t>(result.r_bins) * static_cast<size_t>(result.theta_bins);
+    if (result.trav_grid.size() != expected_cells) {
+        std::fprintf(stderr, "DiskWriteConsumer: trav_grid is a ragged (zoned) %dx%d grid — skipping frame\n",
+                      result.r_bins, result.theta_bins);
+        ++frame_index_;
+        return;
+    }
+
     if (write_images_) {
         cv::Mat img = colorize(result);
 

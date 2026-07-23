@@ -51,14 +51,13 @@ void PolarGridWidget::paintEvent(QPaintEvent*)
 
     const FrameData& f = *m_currentFrame;
     const int nr = f.nr;
-    const int nt = f.nt;
 
     const float r_min    = m_config.r_min_m;
     const float r_max    = m_config.r_max_m;
     const float dr       = m_config.polar_grid_size_r_m;
-    const float dt_rad   = m_config.polar_grid_size_theta_deg * float(M_PI) / 180.0f;
     const float th0_rad  = m_config.theta_min_deg             * float(M_PI) / 180.0f;
     const float th1_rad  = m_config.theta_max_deg             * float(M_PI) / 180.0f;
+    const float th_span_rad = th1_rad - th0_rad;
 
     // Robot coord system: X forward, Y left.
     // Screen: robot at bottom-center; X forward → screen up, Y left → screen left.
@@ -83,19 +82,25 @@ void PolarGridWidget::paintEvent(QPaintEvent*)
     const float qt_arc_span  = m_config.theta_max_deg - m_config.theta_min_deg;
 
     // ── Sectors ──────────────────────────────────────────────────────────────
+    // Ragged grid: row ri has f.row_theta_bins[ri] columns, starting at
+    // f.row_offset[ri], each spanning th_span_rad / row_theta_bins[ri] radians
+    // — NOT a uniform nt columns of dt_rad each (see frame_data.h).
     const QPen borderPen(QColor(0x2b, 0x2b, 0x2b), 0.8f);
     for (int ri = 0; ri < nr; ++ri) {
         const float r1 = r_min + ri * dr;
         const float r2 = r1 + dr;
-        for (int ti = 0; ti < nt; ++ti) {
-            const float v = f.trav_grid[ri * nt + ti];
+        const int   nt_row  = f.row_theta_bins[ri];
+        const int   roff    = f.row_offset[ri];
+        const float dt_row  = th_span_rad / nt_row;
+        for (int ti = 0; ti < nt_row; ++ti) {
+            const float v = f.trav_grid[roff + ti];
             QColor fill;
             if (std::isnan(v))              fill = { 128, 128, 128 };
             else if (v <= m_config.danger_threshold) fill = { 0, 200, 0 };
             else                             fill = { 220, 0, 0 };
 
-            const float a1 = th0_rad + ti * dt_rad;
-            const float a2 = a1 + dt_rad;
+            const float a1 = th0_rad + ti * dt_row;
+            const float a2 = a1 + dt_row;
 
             QPolygonF sector;
             sector << toScreen(r1 * std::cos(a1), r1 * std::sin(a1))
@@ -133,11 +138,28 @@ void PolarGridWidget::paintEvent(QPaintEvent*)
     }
 
     // ── Theta ticks: radial spokes at each cell boundary ─────────────────
+    // Column boundaries are zone-local now (each zone has its own bin
+    // width), so spokes are drawn per contiguous run of same-width rows,
+    // spanning only that zone's radial extent — a global nt/dt_rad no
+    // longer describes the whole grid.
     p.setPen(tickPen);
-    for (int ti = 0; ti <= nt; ++ti) {
-        const float th = th0_rad + ti * dt_rad;
-        p.drawLine(toScreen(r_min * std::cos(th), r_min * std::sin(th)),
-                   toScreen(r_max * std::cos(th), r_max * std::sin(th)));
+    {
+        int ri = 0;
+        while (ri < nr) {
+            const int nt_zone = f.row_theta_bins[ri];
+            int ri_end = ri;
+            while (ri_end < nr && f.row_theta_bins[ri_end] == nt_zone) ++ri_end;
+
+            const float rA = r_min + ri * dr;
+            const float rB = r_min + ri_end * dr;
+            const float dt_zone = th_span_rad / nt_zone;
+            for (int ti = 0; ti <= nt_zone; ++ti) {
+                const float th = th0_rad + ti * dt_zone;
+                p.drawLine(toScreen(rA * std::cos(th), rA * std::sin(th)),
+                           toScreen(rB * std::cos(th), rB * std::sin(th)));
+            }
+            ri = ri_end;
+        }
     }
 
     // Theta labels: every 15° just beyond r_max

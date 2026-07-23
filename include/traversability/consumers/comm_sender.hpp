@@ -34,11 +34,13 @@ struct FrameBundle {
     uint8_t  tracking_state;               // ZED TrackingState cast to uint8_t
     // 3 bytes implicit padding before int32_t
     int32_t  r_bins;                        // actual r dimension this run (≤ MAX_R)
-    int32_t  theta_bins;                    // actual theta dimension this run (≤ MAX_T)
+    int32_t  theta_bins;                    // legacy: widest row's bin count (see row_theta_bins)
+    int32_t  row_theta_bins[MAX_R];        // per-row valid column count; only [0:r_bins) meaningful
     uint8_t  cells[MAX_R][MAX_T];          // quantized trav grid: 0=free 1=obstacle 2=unknown
-                                            // only [0:r_bins, 0:theta_bins] is valid
+                                            // row r valid only over [0, row_theta_bins[r]) —
+                                            // zoned (ragged) grids leave the rest of that row unused
 };
-static_assert(sizeof(FrameBundle) == 2608, "FrameBundle size mismatch — check ZED-Qt copy");
+static_assert(sizeof(FrameBundle) == 2688, "FrameBundle size mismatch — check ZED-Qt copy");
 
 class CommMapSender : public IResultConsumer {
 public:

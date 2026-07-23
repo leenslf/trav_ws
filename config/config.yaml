@@ -8,7 +8,7 @@ zed:
   # most optimal resolution for SLAM is HD720
   resolution: HD720
   # path to the svo file to replay. If empty, the real ZED camera is used.
-  svo_path: "/home/leen/Documents/ZED/TRANSLATE12M.svo2"
+  svo_path: "/home/leen/Documents/ZED/closeup.svo2"
 
   # When svo_real_time_mode = true, the ZED SDK throttles SVO playback to match the original recording FPS. 
   svo_real_time: true 
@@ -38,16 +38,23 @@ polarize:
   min_range: 0.1               # Min horizontal range to keep, in metres (points with r <= this are discarded, removes robot-body / sensor blind-spot returns)
 
 traversability:
-  r_min_m: 0.3                 # Inner radial edge of the polar grid, in metres (hardcoded extent)
-  r_max_m: 2.0                 # Outer radial edge of the polar grid, in metres (hardcoded extent)
+# check these limits? handle the
+  r_min_m: 0.1                 # Inner radial edge of the polar grid, in metres (hardcoded extent)
+  r_max_m: 5.0                 # Outer radial edge of the polar grid, in metres (hardcoded extent)
   theta_min_deg: -45.0         # Left angular sweep limit of the polar grid, in degrees (hardcoded extent)
   theta_max_deg: 45.0          # Right angular sweep limit of the polar grid, in degrees (hardcoded extent)
   danger_threshold: 0.3        # Danger score D above which a cell is classified non-traversable
   scrit_deg: 30.0               # Critical slope angle, in degrees — slope values above this clip to infinity (unconditionally non-traversable)
   rcrit_m: 0.10                 # Critical roughness, in metres (3x3 neighbourhood std-dev of height) — above this clips to infinity
   hcrit_m: 0.20                 # Critical step height, in metres — used both in the step-height (τ) qualification test and as the h_crit normalizer in the danger score blend
-  polar_grid_size_r_m: 0.10     # Radial bin size of the height-map grid, in metres
-  polar_grid_size_theta_deg: 1.0  # Angular bin size of the height-map grid, in degrees.
+  polar_grid_size_r_m: 0.25     # Radial bin size of the height-map grid, in metres
+  polar_grid_size_theta_deg: 1.0  # No longer used by the traversability stage (see theta_target_arc_width_m below).
+                                   # Kept only for ZED-Qt's polar_grid_widget, which still renders a uniform grid overlay.
+  theta_target_arc_width_m: 0.08   # Target physical width (metres) of angular bins, used to derive zoned angular
+                                   # bin counts per radial zone (replaces polar_grid_size_theta_deg for the stage
+                                   # itself). Keep this a few times polar_grid_size_r_m (3-5x) to keep the zone
+                                   # count small — setting it equal to polar_grid_size_r_m collapses to ~1 zone
+                                   # per radial bin.
 
 # comm sends processed frames across network via CommManager.
 # disk writes processed csv frames to disk, useful for analysis and debugging.

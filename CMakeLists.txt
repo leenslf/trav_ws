@@ -70,3 +70,32 @@ target_link_libraries(traversability_pipeline PRIVATE
 set_source_files_properties(src/consumers/comm_sender.cpp
     PROPERTIES COMPILE_FLAGS "-fpermissive"
 )
+
+# --- polar_zones: pure zone-computation function (declared in
+# traversability/stages/traversability.hpp) and its unit test.
+# Not linked into traversability_pipeline.
+add_executable(test_polar_zones
+    src/stages/test_polar_zones.cpp
+)
+target_include_directories(test_polar_zones PRIVATE
+    include/
+    ${ZED_INCLUDE_DIRS}
+    ${CUDA_INCLUDE_DIRS}
+    ${LIB_ROOT}/include
+)
+target_compile_options(test_polar_zones PRIVATE -Wall -Wextra)
+
+# --- seam_neighbor: zone-seam index-mapping math (map_theta_to_row /
+# neighbor_flat_idx / build_row_tables, declared alongside PolarZone in
+# traversability/stages/traversability.hpp) and its unit test.
+# Not linked into traversability_pipeline.
+add_executable(test_seam_neighbor
+    src/stages/test_seam_neighbor.cpp
+)
+target_include_directories(test_seam_neighbor PRIVATE
+    include/
+    ${ZED_INCLUDE_DIRS}
+    ${CUDA_INCLUDE_DIRS}
+    ${LIB_ROOT}/include
+)
+target_compile_options(test_seam_neighbor PRIVATE -Wall -Wextra)

@@ -55,7 +55,7 @@ void CommReceiver::mapLoop()
         map_box_->releaseMsg(msg);
 
         const int nr = bundle.r_bins;
-        const int nt = bundle.theta_bins;
+        const int nt = bundle.theta_bins;  // legacy: widest row's bin count
 
         FrameData frame;
         frame.seq          = map_seq_++;
@@ -63,14 +63,30 @@ void CommReceiver::mapLoop()
         frame.nr           = nr;
         frame.nt           = nt;
 
-        frame.trav_grid.resize(nr * nt);
-        for (int r = 0; r < nr; ++r)
-            for (int c = 0; c < nt; ++c) {
+        // Ragged grid: row r has bundle.row_theta_bins[r] valid columns
+        // (see FrameBundle::row_theta_bins) — pack them back-to-back into
+        // frame.trav_grid, mirroring TraversabilityResult's layout, rather
+        // than assuming a uniform nr x nt grid.
+        frame.row_offset.resize(nr);
+        frame.row_theta_bins.resize(nr);
+        int offset = 0;
+        for (int r = 0; r < nr; ++r) {
+            frame.row_offset[r]     = offset;
+            frame.row_theta_bins[r] = bundle.row_theta_bins[r];
+            offset += bundle.row_theta_bins[r];
+        }
+
+        frame.trav_grid.resize(offset);
+        for (int r = 0; r < nr; ++r) {
+            const int rnt = frame.row_theta_bins[r];
+            const int roff = frame.row_offset[r];
+            for (int c = 0; c < rnt; ++c) {
                 const uint8_t cell = bundle.cells[r][c];
-                frame.trav_grid[r * nt + c] =
+                frame.trav_grid[roff + c] =
                     (cell == 2u) ? std::numeric_limits<float>::quiet_NaN()
                                  : (cell ? 1.0f : 0.0f);
             }
+        }
 
         frame.tx             = bundle.tx;
         frame.ty             = bundle.ty;
