@@ -73,17 +73,11 @@ void GlobalMapModule::onFrameReceived(const FrameData& frame)
 
     for (int i = 0; i < frame.nr; ++i) {
         for (int j = 0; j < frame.nt; ++j) {
-            // TODO(phase3-height): FrameBundle carries no height_map field, so
-            // frame.height_map is always empty in the current wire format.
-            // z_world will equal tz until height_map is added to FrameBundle
-            // and CommReceiver populates this field.  See Phase 3 summary.
-            const float h = (frame.height_map.size() == frame.nr * frame.nt)
-                                ? frame.height_map[i * frame.nt + j]
-                                : 0.0f;
-
+            // No per-cell height is available from the wire format; z_world
+            // is derived from tz alone (see WorldCell::z_world).
             const global_map::WorldCell wc = global_map::local_to_world(
                 i, j, r_edges, theta_edges,
-                h,
+                0.0f,
                 frame.trav_grid[i * frame.nt + j],
                 frame.tx, frame.ty, frame.tz,
                 frame.qx, frame.qy, frame.qz, frame.qw);

@@ -16,7 +16,6 @@ std::size_t serialized_size_bytes(const TraversabilityResult& result)
     const std::size_t nt = static_cast<std::size_t>(result.theta_bins);
     const std::size_t grid_bytes = nr * nt * sizeof(float);
     return sizeof(PacketHeader)
-        + grid_bytes
         + grid_bytes;
 }
 
@@ -28,8 +27,7 @@ bool has_valid_layout(const TraversabilityResult& result)
 
     const std::size_t nr = static_cast<std::size_t>(result.r_bins);
     const std::size_t nt = static_cast<std::size_t>(result.theta_bins);
-    return result.trav_grid.size() == nr * nt
-        && result.height_map.size() == nr * nt;
+    return result.trav_grid.size() == nr * nt;
 }
 
 std::size_t serialize(unsigned char* dst,
@@ -54,9 +52,6 @@ std::size_t serialize(unsigned char* dst,
 
     if (grid_bytes != 0u) {
         std::memcpy(write_ptr, result.trav_grid.data(), grid_bytes);
-        write_ptr += grid_bytes;
-
-        std::memcpy(write_ptr, result.height_map.data(), grid_bytes);
         write_ptr += grid_bytes;
     }
 

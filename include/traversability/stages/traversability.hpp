@@ -28,7 +28,6 @@ private:
     uint8_t* d_observed_mask_{nullptr};
     float*   d_trav_grid_{nullptr};
 
-    // Pinned host buffers for async D2H copy
+    // Pinned host buffer for async D2H copy
     float* h_trav_grid_{nullptr};
-    float* h_terrain_{nullptr};
 };

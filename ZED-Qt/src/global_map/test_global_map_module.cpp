@@ -15,7 +15,6 @@
     } while (0)
 
 // Build a minimal 1-cell FrameData (nr=1, nt=1) at the given pose.
-// height_map is left empty (matches what CommReceiver actually produces).
 static FrameData make_frame(float tx, float ty, uint8_t tracking_state, float trav_value)
 {
     FrameData f;
@@ -25,8 +24,6 @@ static FrameData make_frame(float tx, float ty, uint8_t tracking_state, float tr
     f.nt            = 1;
     f.trav_grid.resize(1);
     f.trav_grid[0]  = trav_value;
-    // height_map intentionally not resized — tests the fallback path in
-    // GlobalMapModule (height_map absent from wire format).
     f.tx = tx;   f.ty = ty;   f.tz = 0.f;
     f.qx = 0.f;  f.qy = 0.f; f.qz = 0.f; f.qw = 1.f;
     f.tracking_state = tracking_state;

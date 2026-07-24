@@ -39,7 +39,7 @@ One consumer is selected at runtime via config.
 | Consumer | Config value | What it does |
 |---|---|---|
 | **`CommMapSender`** | `comm` | Quantizes the float grid to 3-state (0/1/2) and sends it as a `TravMap` struct over `libcomm` (UDP/network) to a remote IP |
-| **`NetworkStreamer`** | `network` | Serializes the full float grids + bin edges into a binary UDP packet and sends to localhost on a fixed port |
+| **`NetworkStreamer`** | `network` | Serializes the full trav_grid float array + bin edges into a binary UDP packet and sends to localhost on a fixed port |
 | **`DiskWriteConsumer`** | `disk` | Writes either colorized PNG images or CSV files per frame to an output directory |
 | **`NullConsumer`** | `null` | Drops results (benchmarking/testing) |
 

@@ -11,7 +11,6 @@ struct FrameData {
     int nr;
     int nt;
     QVector<float> trav_grid;
-    QVector<float> height_map;
     // camera pose — populated from FrameBundle; zero-initialised until first bundle arrives
     float   tx{0}, ty{0}, tz{0};
     float   qx{0}, qy{0}, qz{0}, qw{1};

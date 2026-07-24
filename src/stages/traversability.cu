@@ -351,7 +351,6 @@ TraversabilityStage::~TraversabilityStage() {
     cudaFree(d_observed_mask_);
     cudaFree(d_trav_grid_);
     cudaFreeHost(h_trav_grid_);
-    cudaFreeHost(h_terrain_);
 }
 
 void TraversabilityStage::init(const PipelineConfig& cfg, FrameData& frame) {
@@ -387,9 +386,8 @@ void TraversabilityStage::init(const PipelineConfig& cfg, FrameData& frame) {
     frame.result.r_bins     = r_bins_;
     frame.result.theta_bins = theta_bins_;
 
-    // Pre-allocate output vectors (resized once; overwritten each frame).
+    // Pre-allocate output vector (resized once; overwritten each frame).
     frame.result.trav_grid.resize(static_cast<size_t>(cells));
-    frame.result.height_map.resize(static_cast<size_t>(cells));
 
     if (cells == 0) return;
 
@@ -406,9 +404,8 @@ void TraversabilityStage::init(const PipelineConfig& cfg, FrameData& frame) {
     cudaMalloc(&d_observed_mask_,  bbytes);
     cudaMalloc(&d_trav_grid_,      fbytes);
 
-    // Pinned host buffers enable true async D2H copy.
+    // Pinned host buffer enables true async D2H copy.
     cudaMallocHost(&h_trav_grid_, fbytes);
-    cudaMallocHost(&h_terrain_,   fbytes);
 }
 
 void TraversabilityStage::process(FrameData& frame, cudaStream_t stream) {
@@ -487,14 +484,12 @@ void TraversabilityStage::process(FrameData& frame, cudaStream_t stream) {
         d_trav_grid_,
         r_bins_, theta_bins_, nan_val);
 
-    // Async D2H copy into pinned buffers — enqueued on the same stream so
-    // copies begin only after all preceding kernels complete.
+    // Async D2H copy into pinned buffer — enqueued on the same stream so
+    // the copy begins only after all preceding kernels complete.
     cudaMemcpyAsync(h_trav_grid_, d_trav_grid_, fbytes, cudaMemcpyDeviceToHost, stream);
-    cudaMemcpyAsync(h_terrain_,   d_terrain_,   fbytes, cudaMemcpyDeviceToHost, stream);
 
-    // Sync stream to ensure copies are complete before writing frame.result.
+    // Sync stream to ensure copy is complete before writing frame.result.
     cudaStreamSynchronize(stream);
 
-    std::memcpy(frame.result.trav_grid.data(),  h_trav_grid_, fbytes);
-    std::memcpy(frame.result.height_map.data(), h_terrain_,   fbytes);
+    std::memcpy(frame.result.trav_grid.data(), h_trav_grid_, fbytes);
 }

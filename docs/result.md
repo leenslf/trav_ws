@@ -39,7 +39,6 @@ Polar-grid traversability map produced by `TraversabilityStage::process()` each 
 | Field | Type | Description |
 |---|---|---|
 | `trav_grid` | `vector<float>` | Row-major traversability values (`r_bins × theta_bins`) |
-| `height_map` | `vector<float>` | Row-major height values, same layout |
 | `r_bins` | `int` | Number of radial bins |
 | `theta_bins` | `int` | Number of angular bins |
 
@@ -63,7 +62,7 @@ Top-level output of the pipeline for a single frame. Populated by `PipelineRunne
 
 | Field | Type | Description |
 |---|---|---|
-| `traversability` | `TraversabilityResult` | Traversability and height maps |
+| `traversability` | `TraversabilityResult` | Traversability map |
 | `has_image` | `bool` | Whether `image` contains valid data |
 | `image` | `ImagePayload` | Encoded camera frame |
 | `timestamp_ns` | `uint64_t` | Frame capture time (nanoseconds) |

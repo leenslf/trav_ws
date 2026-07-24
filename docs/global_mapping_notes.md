@@ -121,7 +121,7 @@ global_mapping_notes.md
  
 `FrameResult` contains:
  
-- `traversability` (`TraversabilityResult`) — `trav_grid`, `height_map`, `r_edges`, `theta_edges`, `r_bins`, `theta_bins`, in the **camera's local polar frame**
+- `traversability` (`TraversabilityResult`) — `trav_grid`, `r_edges`, `theta_edges`, `r_bins`, `theta_bins`, in the **camera's local polar frame**
 - `camera_pose` (`CameraPose`) — `tx, ty, tz` + `qx, qy, qz, qw`, the camera's position and orientation in **world space**, from the ZED positional tracking module
 - `tracking_state` (`TrackingState`) — tracking status at capture time: `OK`, `SEARCHING`, `FPS_TOO_LOW`, `SEARCHING_FLOOR_PLANE`, `UNAVAILABLE`, `LOOP_CLOSED`
 - `timestamp_ns` — frame capture time
@@ -169,7 +169,7 @@ theta = (theta_edges[j] + theta_edges[j+1]) / 2
  
 x_cam = r * cos(theta)
 y_cam = r * sin(theta)
-z_cam = height_map[i, j]
+z_cam = 0  # no per-cell height is available from the wire format
 ```
  
 Transform to world frame using `camera_pose` (rotation from `qx,qy,qz,qw` + translation `tx,ty,tz`), then snap to the nearest cell in a fixed-resolution world grid. Apply your fusion rule. Repeat every frame.
