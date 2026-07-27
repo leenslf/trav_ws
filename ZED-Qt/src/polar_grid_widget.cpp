@@ -4,6 +4,9 @@
 #include <QPaintEvent>
 #include <QPainterPath>
 #include <QPolygonF>
+#include <QWheelEvent>
+#include <QMouseEvent>
+#include <algorithm>
 #include <cmath>
 
 PolarGridWidget::PolarGridWidget(QWidget* parent)
@@ -73,8 +76,15 @@ void PolarGridWidget::paintEvent(QPaintEvent*)
     const float ox = width()  / 2.0f;
     const float oy = margin + availH;
 
+    // Cache the fit-to-widget mapping (pre-zoom/pan) so wheelEvent can invert
+    // it when re-centering the zoom on the cursor.
+    m_baseScale = scale;
+    m_originX   = ox;
+    m_originY   = oy;
+
+    const float S = scale * m_zoom;
     auto toScreen = [&](float wx, float wy) -> QPointF {
-        return { ox - wy * scale, oy - wx * scale };
+        return { ox - wy * S + m_panOffset.x(), oy - wx * S + m_panOffset.y() };
     };
 
     // Qt arc angle convention: 0°=right, 90°=up, CCW positive.
@@ -113,9 +123,9 @@ void PolarGridWidget::paintEvent(QPaintEvent*)
     const QPen tickPen(QColor(220, 220, 220, 70), 0.6f);
     p.setBrush(Qt::NoBrush);
     for (int ri = 0; ri <= nr; ++ri) {
-        const float rs = (r_min + ri * dr) * scale;
+        const float rs = (r_min + ri * dr) * S;
         QPainterPath arc;
-        QRectF br(ox - rs, oy - rs, 2.0f * rs, 2.0f * rs);
+        QRectF br(ox - rs + m_panOffset.x(), oy - rs + m_panOffset.y(), 2.0f * rs, 2.0f * rs);
         arc.arcMoveTo(br, qt_arc_start);
         arc.arcTo(br, qt_arc_start, qt_arc_span);
         p.setPen(tickPen);
@@ -144,7 +154,7 @@ void PolarGridWidget::paintEvent(QPaintEvent*)
     {
         p.setFont(tickFont);
         p.setPen(QColor(210, 210, 210));
-        const float labelR = r_max + 16.0f / scale;   // 16 px beyond outer arc
+        const float labelR = r_max + 16.0f / S;   // 16 px beyond outer arc
         const QFontMetrics fm(tickFont);
         for (float deg = m_config.theta_min_deg; deg <= m_config.theta_max_deg + 0.01f; deg += 15.0f) {
             const float th = deg * float(M_PI) / 180.0f;
@@ -195,4 +205,65 @@ void PolarGridWidget::paintEvent(QPaintEvent*)
     p.drawText(rect().adjusted(9, 9, 0, 0), Qt::AlignTop | Qt::AlignLeft, overlay);
     p.setPen(Qt::white);
     p.drawText(rect().adjusted(8, 8, 0, 0), Qt::AlignTop | Qt::AlignLeft, overlay);
+}
+
+void PolarGridWidget::wheelEvent(QWheelEvent* e)
+{
+    const float oldZoom = m_zoom;
+    const float factor = e->angleDelta().y() > 0 ? 1.15f : 1.0f / 1.15f;
+    const float newZoom = std::clamp(oldZoom * factor, 0.25f, 20.0f);
+    if (newZoom == oldZoom) {
+        e->accept();
+        return;
+    }
+
+    // Keep the world point currently under the cursor fixed on screen as we
+    // change zoom, by solving toScreen's inverse at the old scale and
+    // re-deriving the pan offset that reproduces the same screen position
+    // at the new scale.
+    const QPointF cursor  = e->position();
+    const float    oldS   = m_baseScale * oldZoom;
+    const float    newS   = m_baseScale * newZoom;
+    const float    wy = (m_originX + m_panOffset.x() - cursor.x()) / oldS;
+    const float    wx = (m_originY + m_panOffset.y() - cursor.y()) / oldS;
+
+    m_zoom = newZoom;
+    m_panOffset = { cursor.x() - m_originX + wy * newS,
+                    cursor.y() - m_originY + wx * newS };
+
+    e->accept();
+    update();
+}
+
+void PolarGridWidget::mousePressEvent(QMouseEvent* e)
+{
+    if (e->button() == Qt::LeftButton) {
+        m_panning = true;
+        m_lastMousePos = e->pos();
+        setCursor(Qt::ClosedHandCursor);
+    }
+}
+
+void PolarGridWidget::mouseMoveEvent(QMouseEvent* e)
+{
+    if (m_panning) {
+        m_panOffset += QPointF(e->pos() - m_lastMousePos);
+        m_lastMousePos = e->pos();
+        update();
+    }
+}
+
+void PolarGridWidget::mouseReleaseEvent(QMouseEvent* e)
+{
+    if (e->button() == Qt::LeftButton) {
+        m_panning = false;
+        setCursor(Qt::ArrowCursor);
+    }
+}
+
+void PolarGridWidget::mouseDoubleClickEvent(QMouseEvent*)
+{
+    m_zoom = 1.0f;
+    m_panOffset = { 0.0f, 0.0f };
+    update();
 }

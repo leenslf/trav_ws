@@ -1,118 +1,3 @@
-
-All projects
-ZED
-You are acting as a senior software architect, embedded systems engineer, and technical mentor. I am a computer engineering student with limited real-world software engineering process experience. I want this project to be a serious learning opportunity. Your job is not just to give me an architecture, but to teach me the end-to-end software engineering and software architecture process in a practical, non-bloated way.
-Show more
-
-Claude Fable 5 is currently unavailable.
-Learn more(opens in new tab)
-
-
-
-Type / for skills
-
-
-Update global mapping notes for fixed FrameBundle
-Last message just now
-Adding ZED positional tracking to global mapping notes
-Last message 3 minutes ago
-Dynamic traversability map dimensions from config
-Last message 45 minutes ago
-Understanding serialization
-Last message 1 hour ago
-Dynamic traversability map dimensions from config
-Last message 2 hours ago
-ZED mapping explained
-Last message Jun 1
-Planning camera pose and tracking state data transmission
-Last message Jun 1
-Coding agent prompt for ZED tracking state monitoring
-Last message Jun 1
-Refactoring FrameData with aggregate result container
-Last message May 8
-Debugging unexpected shutdowns in C++ applications
-Last message May 8
-Qt multi-view visualization architecture for polar grid and point cloud
-Last message May 8
-Extending traversability pipeline with optional debug outputs
-Last message May 7
-Minimal Docker container for NVIDIA Jetson Xavier
-Last message Apr 20
-UDP traversability result transmission
-Last message Apr 17
-Decoupled metrics architecture for pipeline performance validation
-Last message Apr 17
-Implementing traversability pipeline from architecture specification
-Last message Apr 17
-Voxel filtering timing in processing pipeline
-Last message Apr 16
-Component decomposition document
-Last message Apr 16
-Architecture drivers documentation
-Last message Apr 16
-Intentional architecture for existing code
-Last message Apr 10
-Instructions
-You are a senior software architect and mentor guiding a student through designing a real system. Your goal is to **teach the software engineering and architecture process step by step**, not to jump directly to a final solution. ## How to guide me * Work in **phases** (requirements → design → architecture → validation → etc.) * At each step: * Explain **why this step matters** * Ask me the **key questions I need to answer** * Help me produce a **small, useful artifact** (not over-engineered) * Keep everything **practical and lightweight** ## Important constraints * This is a **single-developer project** * Target system: **Jetson Xavier + ZED camera + C++/CUDA pipeline** * Real-time / streaming considerations are important * GUI is **out of scope for now** ## Teaching style * Be concrete and example-driven * Prefer **simple first, then refine** * When multiple options exist: * explain tradeoffs briefly * recommend one and justify it * Call out when something is: * essential * optional * overkill ## Output expectations * Do NOT give everything at once * Guide me **interactively**, one step at a time * For each artifact: * give a short template * then help me fill it in ## Goal By the end, I should: * understand the architecture decisions * have a small set of meaningful documents * be able to explain *why* the system is designed that way
-
-Files
-1% of project capacity used
-
-consumers.md
-90 lines
-
-md
-
-
-
-COMPONENTS.md
-133 lines
-
-md
-
-
-
-result.md
-78 lines
-
-md
-
-
-
-global_mapping_notes.md
-134 lines
-
-md
-
-
-
-pipeline.md
-61 lines
-
-md
-
-
-
-traversability_architecture.docx
-265 lines
-
-docx
-
-
-
-Current Codebase Layout
-52 lines
-
-text
-
-
-Traversability .pdf
-pdf
-
-
-global_mapping_notes.md
-
-
 # Global Mapping from the Traversability Pipeline
  
 ## What the pipeline produces per frame
@@ -128,7 +13,6 @@ global_mapping_notes.md
 - `has_image` / `image` (`ImagePayload`) — optional JPEG-encoded camera frame
 The traversability grid is still **local** — the polar origin is the camera. To build a global map, transform it into a shared world frame using `camera_pose`.
  
----
  
 ## Architecture decision: global mapping runs on the receiver, not the Jetson
  
@@ -157,7 +41,6 @@ state, time) tuple per frame. The image, if sent, can stay on its own mailbox �
 the fusion math and a stale/missing image frame doesn't corrupt the map.~~
 
 **Handled:** resolved via the bundled `FrameBundle` on mailbox 200 — see `consumers.md`.
----
  
 ## The core problem: local → global
  
@@ -180,7 +63,6 @@ With loop closure enabled, `camera_pose` can jump discontinuously when `tracking
  
 - `OK` / `LOOP_CLOSED` — pose is good, fuse normally. A `LOOP_CLOSED` event may mean previously-fused cells were placed using a now-corrected pose; for the overwrite/max-danger approaches this is an accepted approximation, not something to fix immediately.
 - `SEARCHING`, `FPS_TOO_LOW`, `SEARCHING_FLOOR_PLANE`, `UNAVAILABLE` — pose is unreliable or absent. Skip fusion for this frame rather than writing into the global map using a bad/missing pose.
----
  
 ## Fusion approaches, simplest to most principled
  
@@ -198,7 +80,6 @@ Instead of fusing the traversability classification, fuse the raw height values 
  
 For a single developer starting out: overwrite first, max-danger second, log-odds if you need noise robustness.
  
----
  
 ## Literature to read
  
@@ -218,7 +99,6 @@ They maintain a robot-centric elevation map from a depth camera, fusing frames w
 Papadakis, P. (2013). *Terrain traversability analysis methods for unmanned ground vehicles: A survey.* Engineering Applications of Artificial Intelligence, 26(4), 1373–1385.
 Covers slope/roughness/step-height metrics (exactly what your pipeline computes) and how they're typically aggregated. Good context for understanding the choices already made in your traversability stage.
  
----
  
 ## Questions to work through before building this
  
@@ -240,8 +120,7 @@ Covers slope/roughness/step-height metrics (exactly what your pipeline computes)
  
 - The global map lives in the Qt receiver process, fed by the bundled comm message (trav_grid + pose + tracking_state + timestamp). No Jetson-side `IResultConsumer` changes needed beyond the bundled message format in `consumers.md`.
 - The global map itself is mutable state owned by whatever thread processes incoming comm messages in the Qt app. If anything else needs to read it (a UI panel, a planner on a different machine), plan for a lock or a second handoff — don't design this until you know who the reader is.
----
- 
+
 ## Suggested first step
  
 1. ~~Add `camera_pose` (and `timestamp_ns` if not already there) to `TraversabilityResult`~~ — **done**, via `FrameResult` (see `frame_result.hpp`).

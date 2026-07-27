@@ -10,8 +10,11 @@
 // Wire format for mailbox 200. Fixed-size POD; received via getStruct.
 // MUST stay byte-identical with the copy in include/traversability/consumers/comm_sender.hpp.
 struct FrameBundle {
-    static const int MAX_R = 20;    // maximum r_bins supported
-    static const int MAX_T = 128;   // maximum theta_bins supported (FOV/theta_deg=1.0 -> 90 bins, plus headroom)
+    // Ragged-polar-grid sizing (see docs/design/ragged_polar_grid_design.md).
+    // Sized for r_max_m up to 20.0 m (r_min_m=0.1, dr=0.25 -> R=80, +headroom -> 88);
+    // theta span 90deg at r=20.0 m needs ~126 theta_bins, well under MAX_T.
+    static const int MAX_R = 88;    // maximum r_bins supported
+    static const int MAX_T = 256;   // maximum theta_bins supported (FOV/theta_deg=1.0 -> 90 bins, plus headroom)
 
     uint64_t timestamp_ns;                  // frame capture time
     float    tx, ty, tz;                    // camera translation (metres)
@@ -23,7 +26,7 @@ struct FrameBundle {
     uint8_t  cells[MAX_R][MAX_T];          // quantized trav grid: 0=free 1=obstacle 2=unknown
                                             // only [0:r_bins, 0:theta_bins] is valid
 };
-static_assert(sizeof(FrameBundle) == 2608, "FrameBundle size mismatch — check comm_sender.hpp copy");
+static_assert(sizeof(FrameBundle) == 22576, "FrameBundle size mismatch — check comm_sender.hpp copy");
 
 // mailbox 202 retired — pose is now bundled into FrameBundle on mailbox 200
 static constexpr int MAP_MAILBOX_ID       = 200;

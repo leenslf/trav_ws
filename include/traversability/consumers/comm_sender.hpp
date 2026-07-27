@@ -11,34 +11,29 @@ class Mailer;
 constexpr int TRAVMAP_MAILBOX_ID   = 200;
 constexpr int IMAGE_MAILBOX_ID     = 201;
 constexpr int IMAGE_MAX_SIZE_BYTES = 32768;  // 32 KB — conservative ceiling for 320x180 JPEG
-// mailbox 202 retired — pose is now bundled into FrameBundle on mailbox 200
 
-// Destination port on the OCU/console for the traversability feed.
-// Deliberately NOT the libcomm default (5000): on a machine running both
-// RobotGUI and a local TRHex robot process (e.g. the "dummy" hardware
-// target), the robot's own RHexAPI control channel already binds port
-// 5000, and SO_REUSEADDR lets a second bind steal delivery of new
-// datagrams there, silently breaking the robot control heartbeat.
-// MUST stay in sync with RobotGUI's LocalMapWidget portal port.
 constexpr int TRAVMAP_REMOTE_PORT  = 6000;
 
 // Wire format for mailbox 200. Fixed-size POD; sent via setStruct/getStruct.
 // MUST stay byte-identical with the copy in ZED-Qt/include/comm_receiver.h.
 struct FrameBundle {
-    static const int MAX_R = 20;    // maximum r_bins supported
-    static const int MAX_T = 128;   // maximum theta_bins supported (FOV/theta_deg=1.0 -> 90 bins, plus headroom)
+    // Ragged-polar-grid sizing (see docs/design/ragged_polar_grid_design.md).
+    // Sized for r_max_m up to 20.0 m (r_min_m=0.1, dr=0.25 -> R=80, +headroom -> 88);
+    // theta span 90deg at r=20.0 m needs ~126 theta_bins, well under MAX_T.
+    static const int MAX_R = 88;    // maximum r_bins supported
+    static const int MAX_T = 256;   // maximum theta_bins supported (FOV/theta_deg=1.0 -> 90 bins, plus headroom)
 
     uint64_t timestamp_ns;                  // frame capture time
     float    tx, ty, tz;                    // camera translation (metres)
     float    qx, qy, qz, qw;               // camera orientation quaternion
     uint8_t  tracking_state;               // ZED TrackingState cast to uint8_t
     // 3 bytes implicit padding before int32_t
-    int32_t  r_bins;                        // actual r dimension this run (≤ MAX_R)
-    int32_t  theta_bins;                    // actual theta dimension this run (≤ MAX_T)
+    int32_t  r_bins;                      //  = ceil( (r_max_m - r_min_m) / polar_grid_size_r_m )
+    int32_t  theta_bins;                  //  = ceil( (theta_max_deg - theta_min_deg) / polar_grid_size_theta_deg )
     uint8_t  cells[MAX_R][MAX_T];          // quantized trav grid: 0=free 1=obstacle 2=unknown
                                             // only [0:r_bins, 0:theta_bins] is valid
 };
-static_assert(sizeof(FrameBundle) == 2608, "FrameBundle size mismatch — check ZED-Qt copy");
+static_assert(sizeof(FrameBundle) == 22576, "FrameBundle size mismatch — check ZED-Qt copy");
 
 class CommMapSender : public IResultConsumer {
 public:
